@@ -21,6 +21,11 @@ import {
   MenuItem,
   Chip,
   Divider,
+  FormControlLabel,
+  Switch,
+  FormControl,
+  InputLabel,
+  Select,
 } from '@mui/material';
 import {
   PlayArrow as PlayArrowIcon,
@@ -59,6 +64,9 @@ const SQLEditorPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [query, setQuery] = useState('');
   const [createTableName, setCreateTableName] = useState('');
+  const [includeIdColumn, setIncludeIdColumn] = useState(true);
+  const [idColumnType, setIdColumnType] = useState('SERIAL');
+  const [idColumnName, setIdColumnName] = useState('id');
   const [columns, setColumns] = useState<Array<{name: string; type: string; constraints: string}>>([{name: '', type: 'VARCHAR(255)', constraints: ''}]);
   const [insertTableName, setInsertTableName] = useState('');
   const [insertColumns, setInsertColumns] = useState<Array<{column: string; value: string}>>([{column: '', value: ''}]);
@@ -118,15 +126,40 @@ const SQLEditorPage: React.FC = () => {
     }
 
     const validColumns = columns.filter(col => col.name.trim());
-    if (validColumns.length === 0) {
+    if (!includeIdColumn && validColumns.length === 0) {
       return '';
     }
 
-    const columnDefs = validColumns.map(col => 
+    const allColumnDefs = [];
+    
+    // Add ID column if enabled
+    if (includeIdColumn) {
+      let idDef = `${idColumnName} ${idColumnType}`;
+      
+      // Add PRIMARY KEY constraint for ID column
+      if (idColumnType === 'SERIAL' || idColumnType === 'BIGSERIAL') {
+        idDef += ' PRIMARY KEY';
+      } else if (idColumnType === 'UUID') {
+        idDef += ' DEFAULT gen_random_uuid() PRIMARY KEY';
+      } else {
+        idDef += ' PRIMARY KEY';
+      }
+      
+      allColumnDefs.push(idDef);
+    }
+    
+    // Add user-defined columns
+    const userColumnDefs = validColumns.map(col => 
       `${col.name} ${col.type}${col.constraints ? ' ' + col.constraints : ''}`
-    ).join(',\n  ');
+    );
+    
+    allColumnDefs.push(...userColumnDefs);
+    
+    if (allColumnDefs.length === 0) {
+      return '';
+    }
 
-    return `CREATE TABLE ${createTableName} (\n  ${columnDefs}\n);`;
+    return `CREATE TABLE ${createTableName} (\n  ${allColumnDefs.join(',\n  ')}\n);`;
   };
 
   const generateInsertSQL = () => {
@@ -141,8 +174,16 @@ const SQLEditorPage: React.FC = () => {
 
     const columnNames = validColumns.map(col => col.column).join(', ');
     const values = validColumns.map(col => {
+      // Handle DEFAULT keyword for auto-increment columns
+      if (col.value.toUpperCase() === 'DEFAULT') {
+        return 'DEFAULT';
+      }
+      // Handle NULL values
+      if (col.value.toUpperCase() === 'NULL') {
+        return 'NULL';
+      }
       // Add quotes for string values
-      if (isNaN(Number(col.value)) && col.value.toUpperCase() !== 'NULL') {
+      if (isNaN(Number(col.value))) {
         return `'${col.value.replace(/'/g, "''")}'`;
       }
       return col.value;
@@ -158,8 +199,13 @@ const SQLEditorPage: React.FC = () => {
     }
 
     const validColumns = columns.filter(col => col.name.trim());
-    if (validColumns.length === 0) {
-      setError('Please add at least one column');
+    if (!includeIdColumn && validColumns.length === 0) {
+      setError('Please add at least one column or enable ID column');
+      return;
+    }
+
+    if (includeIdColumn && !idColumnName.trim()) {
+      setError('Please enter an ID column name');
       return;
     }
 
@@ -318,9 +364,56 @@ const SQLEditorPage: React.FC = () => {
                   placeholder="e.g., users, products"
                 />
               </Grid>
+              
+              {/* ID Column Configuration */}
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
-                  Columns
+                  ID Column Configuration
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={includeIdColumn}
+                      onChange={(e) => setIncludeIdColumn(e.target.checked)}
+                    />
+                  }
+                  label="Include ID column"
+                />
+              </Grid>
+              
+              {includeIdColumn && (
+                <>
+                  <Grid item xs={4}>
+                    <TextField
+                      fullWidth
+                      label="ID Column Name"
+                      value={idColumnName}
+                      onChange={(e) => setIdColumnName(e.target.value)}
+                      placeholder="e.g., id, user_id"
+                    />
+                  </Grid>
+                  <Grid item xs={8}>
+                    <FormControl fullWidth>
+                      <InputLabel>ID Column Type</InputLabel>
+                      <Select
+                        value={idColumnType}
+                        label="ID Column Type"
+                        onChange={(e) => setIdColumnType(e.target.value)}
+                      >
+                        <MenuItem value="SERIAL">SERIAL (Auto-increment integer)</MenuItem>
+                        <MenuItem value="BIGSERIAL">BIGSERIAL (Auto-increment big integer)</MenuItem>
+                        <MenuItem value="UUID">UUID (Universally unique identifier)</MenuItem>
+                        <MenuItem value="INTEGER">INTEGER (Manual integer)</MenuItem>
+                        <MenuItem value="BIGINT">BIGINT (Manual big integer)</MenuItem>
+                        <MenuItem value="VARCHAR(36)">VARCHAR(36) (String ID)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                </>
+              )}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  {includeIdColumn ? 'Additional Columns' : 'Columns'}
                 </Typography>
                 {columns.map((column, index) => (
                   <Grid container spacing={1} key={index} sx={{ mb: 1 }}>
@@ -371,7 +464,7 @@ const SQLEditorPage: React.FC = () => {
                   onClick={addColumn}
                   size="small"
                 >
-                  Add Column
+                  Add {includeIdColumn ? 'Additional' : ''} Column
                 </Button>
               </Grid>
               <Grid item xs={12}>
@@ -391,7 +484,7 @@ const SQLEditorPage: React.FC = () => {
                     variant="contained"
                     startIcon={<PlayArrowIcon />}
                     onClick={handleCreateTable}
-                    disabled={!createTableName.trim() || columns.filter(c => c.name).length === 0 || loading}
+                    disabled={!createTableName.trim() || (!includeIdColumn && columns.filter(c => c.name).length === 0) || loading}
                   >
                     {loading ? 'Creating...' : 'Create Table'}
                   </Button>
@@ -440,6 +533,7 @@ const SQLEditorPage: React.FC = () => {
                         value={col.column}
                         onChange={(e) => updateInsertColumn(index, 'column', e.target.value)}
                         placeholder="e.g., name, email"
+                        helperText={col.column.toLowerCase().includes('id') ? 'ID columns are usually auto-generated' : ''}
                       />
                     </Grid>
                     <Grid item xs={6}>
@@ -449,7 +543,8 @@ const SQLEditorPage: React.FC = () => {
                         label="Value"
                         value={col.value}
                         onChange={(e) => updateInsertColumn(index, 'value', e.target.value)}
-                        placeholder="e.g., 'John Doe', 123"
+                        placeholder={col.column.toLowerCase().includes('id') ? 'Leave empty for auto-increment' : "e.g., 'John Doe', 123"}
+                        helperText={col.column.toLowerCase().includes('id') ? 'Use DEFAULT for auto-increment' : ''}
                       />
                     </Grid>
                     <Grid item xs={1}>
