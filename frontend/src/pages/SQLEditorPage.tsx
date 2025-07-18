@@ -217,11 +217,22 @@ const SQLEditorPage: React.FC = () => {
       return '';
     }
 
+    // List of PostgreSQL reserved keywords
+    const reservedKeywords = ['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where', 'join', 'union', 'insert', 'update', 'delete', 'create', 'alter', 'drop', 'grant', 'revoke', 'index', 'view', 'trigger', 'function', 'procedure', 'database', 'schema', 'role', 'password', 'authorization'];
+    
+    // Quote identifier if it's a reserved keyword
+    const quoteIdentifier = (name: string) => {
+      if (reservedKeywords.includes(name.toLowerCase())) {
+        return `"${name}"`;
+      }
+      return name;
+    };
+
     const allColumnDefs = [];
     
     // Add ID column if enabled
     if (includeIdColumn) {
-      let idDef = `${idColumnName} ${idColumnType}`;
+      let idDef = `${quoteIdentifier(idColumnName)} ${idColumnType}`;
       
       // Add PRIMARY KEY constraint for ID column
       if (idColumnType === 'SERIAL' || idColumnType === 'BIGSERIAL') {
@@ -237,7 +248,7 @@ const SQLEditorPage: React.FC = () => {
     
     // Add user-defined columns
     const userColumnDefs = validColumns.map(col => 
-      `${col.name} ${col.type}${col.constraints ? ' ' + col.constraints : ''}`
+      `${quoteIdentifier(col.name)} ${col.type}${col.constraints ? ' ' + col.constraints : ''}`
     );
     
     allColumnDefs.push(...userColumnDefs);
@@ -246,7 +257,7 @@ const SQLEditorPage: React.FC = () => {
       return '';
     }
 
-    return `CREATE TABLE ${createTableName} (\n  ${allColumnDefs.join(',\n  ')}\n);`;
+    return `CREATE TABLE ${quoteIdentifier(createTableName)} (\n  ${allColumnDefs.join(',\n  ')}\n);`;
   };
 
   const generateInsertSQL = () => {
@@ -259,7 +270,18 @@ const SQLEditorPage: React.FC = () => {
       return '';
     }
 
-    const columnNames = validColumns.map(col => col.column).join(', ');
+    // List of PostgreSQL reserved keywords
+    const reservedKeywords = ['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where', 'join', 'union', 'insert', 'update', 'delete', 'create', 'alter', 'drop', 'grant', 'revoke', 'index', 'view', 'trigger', 'function', 'procedure', 'database', 'schema', 'role', 'password', 'authorization'];
+    
+    // Quote identifier if it's a reserved keyword
+    const quoteIdentifier = (name: string) => {
+      if (reservedKeywords.includes(name.toLowerCase())) {
+        return `"${name}"`;
+      }
+      return name;
+    };
+
+    const columnNames = validColumns.map(col => quoteIdentifier(col.column)).join(', ');
     const values = validColumns.map(col => {
       // Handle DEFAULT keyword for auto-increment columns
       if (col.value.toUpperCase() === 'DEFAULT') {
@@ -276,7 +298,7 @@ const SQLEditorPage: React.FC = () => {
       return col.value;
     }).join(', ');
 
-    return `INSERT INTO ${insertTableName} (${columnNames})\nVALUES (${values});`;
+    return `INSERT INTO ${quoteIdentifier(insertTableName)} (${columnNames})\nVALUES (${values});`;
   };
 
   const handleCreateTable = () => {
@@ -465,6 +487,12 @@ const SQLEditorPage: React.FC = () => {
                   value={createTableName}
                   onChange={(e) => setCreateTableName(e.target.value)}
                   placeholder="e.g., users, products"
+                  error={['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where'].includes(createTableName.toLowerCase())}
+                  helperText={
+                    ['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where'].includes(createTableName.toLowerCase())
+                      ? `"${createTableName}" is a reserved keyword in PostgreSQL. Consider using "${createTableName}s" or wrap it in quotes.`
+                      : ''
+                  }
                 />
               </Grid>
               
@@ -552,6 +580,12 @@ const SQLEditorPage: React.FC = () => {
                         value={column.name}
                         onChange={(e) => updateColumn(index, 'name', e.target.value)}
                         placeholder="e.g., username, email"
+                        error={['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where'].includes(column.name.toLowerCase())}
+                        helperText={
+                          ['user', 'order', 'group', 'table', 'column', 'select', 'from', 'where'].includes(column.name.toLowerCase())
+                            ? 'Reserved keyword (will be quoted)'
+                            : ''
+                        }
                       />
                     </Grid>
                     <Grid item xs={12} sm={4}>
