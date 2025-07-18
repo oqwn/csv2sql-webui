@@ -1,11 +1,11 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic import AnyHttpUrl, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(
+    model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=".env"
     )
