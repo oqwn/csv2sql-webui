@@ -347,6 +347,20 @@ const SQLEditorPage: React.FC = () => {
       return;
     }
 
+    // Check for required fields
+    const requiredColumns = tableColumns.filter(
+      col => !col.nullable && !col.default && !col.name.toLowerCase().includes('id')
+    );
+    
+    const missingRequired = requiredColumns.filter(
+      reqCol => !validColumns.some(vc => vc.column === reqCol.name)
+    );
+    
+    if (missingRequired.length > 0) {
+      setError(`Missing required fields: ${missingRequired.map(c => c.name).join(', ')}`);
+      return;
+    }
+
     const sql = generateInsertSQL();
     if (sql) {
       executeQuery(sql);
@@ -764,13 +778,38 @@ const SQLEditorPage: React.FC = () => {
                   select
                   label="Table"
                   value={insertTableName}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const tableName = e.target.value;
                     setInsertTableName(tableName);
                     if (tableName) {
-                      fetchTableColumns(tableName);
+                      await fetchTableColumns(tableName);
+                      // Auto-populate required columns (NOT NULL without defaults)
+                      const response = await sqlAPI.getTableColumns(tableName);
+                      const columns = response.data.columns || [];
+                      const requiredColumns = columns.filter(
+                        (col: any) => !col.nullable && !col.default && !col.name.toLowerCase().includes('id')
+                      );
+                      
+                      if (requiredColumns.length > 0) {
+                        // Create insert columns for all required fields
+                        const newInsertColumns = requiredColumns.map((col: any) => ({
+                          column: col.name,
+                          value: '',
+                          useDropdown: true
+                        }));
+                        
+                        // Add one empty row for optional columns
+                        newInsertColumns.push({
+                          column: '',
+                          value: '',
+                          useDropdown: true
+                        });
+                        
+                        setInsertColumns(newInsertColumns);
+                      }
                     } else {
                       setTableColumns([]);
+                      setInsertColumns([{column: '', value: '', useDropdown: true}]);
                     }
                   }}
                   placeholder="Select a table"
@@ -783,9 +822,30 @@ const SQLEditorPage: React.FC = () => {
                 </TextField>
               </Grid>
               <Grid item xs={12}>
-                <Typography variant="h6" gutterBottom>
-                  Values
-                </Typography>
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Values
+                  </Typography>
+                  {tableColumns.some(col => !col.nullable && !col.default) && (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      <AlertTitle>Required Fields</AlertTitle>
+                      The following columns are required (NOT NULL without defaults):
+                      <Box sx={{ mt: 1 }}>
+                        {tableColumns
+                          .filter(col => !col.nullable && !col.default && !col.name.toLowerCase().includes('id'))
+                          .map(col => (
+                            <Chip
+                              key={col.name}
+                              label={`${col.name} (${col.type})`}
+                              size="small"
+                              color="primary"
+                              sx={{ mr: 1, mb: 0.5 }}
+                            />
+                          ))}
+                      </Box>
+                    </Alert>
+                  )}
+                </Box>
                 {insertColumns.map((col, index) => (
                   <Grid container spacing={1} key={index} sx={{ mb: 1 }}>
                     <Grid item xs={5}>
@@ -814,8 +874,13 @@ const SQLEditorPage: React.FC = () => {
                           >
                             {tableColumns.map((column) => (
                               <MenuItem key={column.name} value={column.name}>
-                                <Box>
-                                  <Typography variant="body2">{column.name}</Typography>
+                                <Box sx={{ width: '100%' }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="body2">{column.name}</Typography>
+                                    {!column.nullable && !column.default && !column.name.toLowerCase().includes('id') && (
+                                      <Chip label="Required" size="small" color="error" sx={{ height: 20 }} />
+                                    )}
+                                  </Box>
                                   <Typography variant="caption" color="text.secondary">
                                     {column.type} {column.nullable ? '' : 'NOT NULL'} {column.default ? `DEFAULT ${column.default}` : ''}
                                   </Typography>
@@ -845,6 +910,16 @@ const SQLEditorPage: React.FC = () => {
                         onChange={(e) => updateInsertColumn(index, 'value', e.target.value)}
                         placeholder={col.column.toLowerCase().includes('id') ? 'Leave empty for auto-increment' : "e.g., 'John Doe', 123"}
                         helperText={col.column.toLowerCase().includes('id') ? 'Use DEFAULT for auto-increment' : ''}
+                        error={
+                          !!(col.column && 
+                          !col.value && 
+                          tableColumns.some(tc => 
+                            tc.name === col.column && 
+                            !tc.nullable && 
+                            !tc.default &&
+                            !tc.name.toLowerCase().includes('id')
+                          ))
+                        }
                       />
                     </Grid>
                     <Grid item xs={1}>
