@@ -9,7 +9,7 @@ passlib[bcrypt]==1.7.4
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
 alembic==1.14.0
-pandas==2.2.3
+pandas==2.3.1
 openpyxl==3.1.5
 redis==5.2.1
 celery==5.4.0
