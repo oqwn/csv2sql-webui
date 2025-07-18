@@ -16,9 +16,6 @@ COPY . .
 # Build the app
 RUN pnpm run build
 
-# List build output for debugging
-RUN ls -la /app/build || echo "Build directory not found"
-
 # Production stage
 FROM nginx:alpine
 
@@ -27,9 +24,6 @@ RUN apk add --no-cache wget
 
 # Copy built files from build stage
 COPY --from=build /app/build /usr/share/nginx/html
-
-# List files for debugging
-RUN ls -la /usr/share/nginx/html || echo "No files in nginx html directory"
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
