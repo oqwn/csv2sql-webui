@@ -109,20 +109,35 @@ function generateTimestamp(): string {
 }
 
 // Main function to generate value based on column name and type
-export function generateValue(columnName: string, columnType: string): string {
+export function generateValue(columnName: string, columnType: string, rowIndex: number = 0): string {
   const colLower = columnName.toLowerCase();
   const typeLower = columnType.toLowerCase();
   
   // Handle specific column names
   if (colLower.includes('email')) {
-    return randomElement(EMAILS);
+    // Add row number to ensure uniqueness
+    const baseEmail = randomElement(EMAILS);
+    if (rowIndex > 0) {
+      const [localPart, domain] = baseEmail.split('@');
+      return `${localPart}${rowIndex}@${domain}`;
+    }
+    return baseEmail;
   }
   
   if (colLower.includes('username') || colLower.includes('user_name')) {
-    return randomElement(USERNAMES);
+    // Add row number to ensure uniqueness
+    const baseUsername = randomElement(USERNAMES);
+    return rowIndex > 0 ? `${baseUsername}${rowIndex}` : baseUsername;
   }
   
   if (colLower.includes('name') || colLower.includes('fullname') || colLower.includes('full_name')) {
+    // For product names, company names, etc. that might need to be unique
+    if (colLower.includes('product') || colLower.includes('company') || colLower.includes('brand')) {
+      const baseName = randomElement(['Alpha', 'Beta', 'Gamma', 'Delta', 'Omega', 'Sigma', 'Prime', 'Ultra', 'Max', 'Pro']);
+      const suffix = randomElement(['Corp', 'Inc', 'Ltd', 'Co', 'Group', 'Solutions', 'Systems', 'Tech', 'Global', 'International']);
+      return rowIndex > 0 ? `${baseName} ${suffix} ${rowIndex}` : `${baseName} ${suffix}`;
+    }
+    // For person names, use regular name generation
     return generateName();
   }
   
@@ -147,11 +162,13 @@ export function generateValue(columnName: string, columnType: string): string {
   }
   
   if (colLower.includes('title')) {
-    return randomElement(TITLES);
+    const baseTitle = randomElement(TITLES);
+    return rowIndex > 0 ? `${baseTitle} ${rowIndex}` : baseTitle;
   }
   
   if (colLower.includes('description') || colLower.includes('desc')) {
-    return randomElement(DESCRIPTIONS);
+    const baseDesc = randomElement(DESCRIPTIONS);
+    return rowIndex > 0 ? `${baseDesc} (Version ${rowIndex})` : baseDesc;
   }
   
   if (colLower.includes('tag') || colLower.includes('label')) {
@@ -167,7 +184,11 @@ export function generateValue(columnName: string, columnType: string): string {
   }
   
   if (colLower.includes('phone')) {
-    return `+1-${randomInt(200, 999)}-${randomInt(100, 999)}-${randomInt(1000, 9999)}`;
+    // Use row index to ensure unique phone numbers
+    const area = 200 + (rowIndex % 800); // 200-999
+    const prefix = 100 + (rowIndex % 900); // 100-999
+    const line = 1000 + rowIndex; // Sequential line numbers
+    return `+1-${area}-${prefix}-${line}`;
   }
   
   if (colLower.includes('price') || colLower.includes('cost') || colLower.includes('amount')) {
@@ -252,7 +273,7 @@ export function generateBulkInsertSQL(
   
   for (let i = 0; i < rowCount; i++) {
     const rowValues = columnsToInsert.map(col => {
-      const value = generateValue(col.name, col.type);
+      const value = generateValue(col.name, col.type, i);
       
       // Handle special cases
       if (value === 'gen_random_uuid()') {
