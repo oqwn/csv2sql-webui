@@ -114,13 +114,11 @@ const SQLEditorPage: React.FC = () => {
 
   const generateCreateTableSQL = () => {
     if (!createTableName.trim()) {
-      setError('Please enter a table name');
       return '';
     }
 
     const validColumns = columns.filter(col => col.name.trim());
     if (validColumns.length === 0) {
-      setError('Please add at least one column');
       return '';
     }
 
@@ -133,13 +131,11 @@ const SQLEditorPage: React.FC = () => {
 
   const generateInsertSQL = () => {
     if (!insertTableName.trim()) {
-      setError('Please select a table');
       return '';
     }
 
     const validColumns = insertColumns.filter(col => col.column.trim() && col.value.trim());
     if (validColumns.length === 0) {
-      setError('Please add at least one column with value');
       return '';
     }
 
@@ -156,6 +152,17 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const handleCreateTable = () => {
+    if (!createTableName.trim()) {
+      setError('Please enter a table name');
+      return;
+    }
+
+    const validColumns = columns.filter(col => col.name.trim());
+    if (validColumns.length === 0) {
+      setError('Please add at least one column');
+      return;
+    }
+
     const sql = generateCreateTableSQL();
     if (sql) {
       executeQuery(sql);
@@ -163,6 +170,17 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const handleInsertData = () => {
+    if (!insertTableName.trim()) {
+      setError('Please select a table');
+      return;
+    }
+
+    const validColumns = insertColumns.filter(col => col.column.trim() && col.value.trim());
+    if (validColumns.length === 0) {
+      setError('Please add at least one column with value');
+      return;
+    }
+
     const sql = generateInsertSQL();
     if (sql) {
       executeQuery(sql);
