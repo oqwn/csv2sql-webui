@@ -25,6 +25,12 @@ def execute_query(db: Session, query: str) -> SQLResult:
     # Get row count, which is available for all query types
     row_count = cursor_result.rowcount if cursor_result.rowcount is not None else 0
     
+    # Commit the transaction for DML/DDL operations
+    # Check if it's not a SELECT query
+    query_upper = query.strip().upper()
+    if not query_upper.startswith('SELECT') and not query_upper.startswith('SHOW') and not query_upper.startswith('DESCRIBE'):
+        db.commit()
+    
     execution_time = time.time() - start_time
     
     return SQLResult(
