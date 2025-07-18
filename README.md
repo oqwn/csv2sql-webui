@@ -65,11 +65,13 @@ uvicorn main:app --reload
 cd frontend
 # Install pnpm if not already installed
 corepack enable && corepack prepare pnpm@latest --activate
-# Install dependencies
+# Install dependencies (this will generate pnpm-lock.yaml on first run)
 pnpm install
 # Start dev server
 pnpm start
 ```
+
+**Note**: After first install, commit the `pnpm-lock.yaml` file to ensure reproducible builds.
 
 ### Creating Initial User
 

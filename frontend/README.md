@@ -34,6 +34,8 @@ corepack prepare pnpm@latest --activate
 pnpm install
 ```
 
+**Note**: The first run will generate `pnpm-lock.yaml`. Commit this file to your repository.
+
 3. Create a `.env.local` file:
 ```bash
 VITE_API_URL=http://localhost:8000/api/v1
