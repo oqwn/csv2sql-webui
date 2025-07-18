@@ -153,12 +153,22 @@ const SQLEditorPage: React.FC = () => {
   const [includeIdColumn, setIncludeIdColumn] = useState(true);
   const [idColumnType, setIdColumnType] = useState('SERIAL');
   const [idColumnName, setIdColumnName] = useState('id');
-  const [columns, setColumns] = useState<Array<{name: string; type: string; constraints: string; customType: boolean; customConstraints: boolean}>>([{name: '', type: 'VARCHAR(255)', constraints: '', customType: false, customConstraints: false}]);
+  const [columns, setColumns] = useState<Array<{name: string; type: string; constraints: string; customType: boolean; customConstraints: boolean}>>([
+    {name: '', type: 'VARCHAR(255)', constraints: '', customType: false, customConstraints: false},
+    {name: '', type: 'VARCHAR(255)', constraints: '', customType: false, customConstraints: false},
+    {name: '', type: 'VARCHAR(255)', constraints: '', customType: false, customConstraints: false}
+  ]);
   const [insertTableName, setInsertTableName] = useState('');
   const [insertColumns, setInsertColumns] = useState<Array<{column: string; value: string}>>([{column: '', value: ''}]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<{
+    columns: string[];
+    rows: any[][];
+    row_count: number;
+    execution_time: number;
+    executedQuery?: string;
+  } | null>(null);
   const [tables, setTables] = useState<string[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -182,8 +192,8 @@ const SQLEditorPage: React.FC = () => {
       if (queryToExecute.trim().toUpperCase().startsWith('CREATE TABLE')) {
         await fetchTables();
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Query execution failed');
+    } catch (err) {
+      setError((err as any).response?.data?.detail || 'Query execution failed');
     } finally {
       setLoading(false);
     }
@@ -347,7 +357,10 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const removeColumn = (index: number) => {
-    setColumns(columns.filter((_, i) => i !== index));
+    // Always keep at least one column
+    if (columns.length > 1) {
+      setColumns(columns.filter((_, i) => i !== index));
+    }
   };
 
   const updateColumn = (index: number, field: 'name' | 'type' | 'constraints' | 'customType' | 'customConstraints', value: string | boolean) => {
@@ -544,9 +557,14 @@ const SQLEditorPage: React.FC = () => {
               )}
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6">
-                    {includeIdColumn ? 'Additional Columns' : 'Columns'}
-                  </Typography>
+                  <Box>
+                    <Typography variant="h6">
+                      {includeIdColumn ? 'Additional Columns' : 'Columns'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Add unlimited columns - click "Add Column" below
+                    </Typography>
+                  </Box>
                   <FormControl size="small" sx={{ minWidth: 120 }}>
                     <InputLabel>Template</InputLabel>
                     <Select
@@ -695,14 +713,19 @@ const SQLEditorPage: React.FC = () => {
                     </Grid>
                   </Grid>
                 ))}
-                <Button
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  onClick={addColumn}
-                  size="small"
-                >
-                  Add {includeIdColumn ? 'Additional' : ''} Column
-                </Button>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={addColumn}
+                    color="primary"
+                  >
+                    Add {includeIdColumn ? 'Another' : ''} Column
+                  </Button>
+                  <Typography variant="body2" color="text.secondary">
+                    No limit on columns - add as many as you need!
+                  </Typography>
+                </Box>
               </Grid>
               <Grid item xs={12}>
                 <Divider sx={{ my: 2 }} />
@@ -929,9 +952,9 @@ const SQLEditorPage: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {result.rows.map((row: any[], rowIndex: number) => (
+                    {result.rows.map((row: unknown[], rowIndex: number) => (
                       <TableRow key={rowIndex} hover>
-                        {row.map((cell: any, cellIndex: number) => (
+                        {row.map((cell: unknown, cellIndex: number) => (
                           <TableCell key={cellIndex}>
                             {cell === null ? (
                               <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
