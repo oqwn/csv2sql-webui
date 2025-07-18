@@ -18,7 +18,6 @@ import {
   Tab,
   Grid,
   IconButton,
-  Menu,
   MenuItem,
   Chip,
   Divider,
@@ -34,7 +33,6 @@ import {
   TableChart as TableChartIcon,
   Add as AddIcon,
   FileDownload as FileDownloadIcon,
-  MoreVert as MoreVertIcon,
   ContentCopy as ContentCopyIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material';
@@ -163,7 +161,6 @@ const SQLEditorPage: React.FC = () => {
   const [result, setResult] = useState<any>(null);
   const [tables, setTables] = useState<string[]>([]);
   const [tableColumns, setTableColumns] = useState<Array<{name: string; type: string; nullable: boolean; default: string | null}>>([]);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showBulkGenerate, setShowBulkGenerate] = useState(false);
   const [bulkRowCount, setBulkRowCount] = useState<100 | 1000 | 10000>(100);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
@@ -461,18 +458,9 @@ const SQLEditorPage: React.FC = () => {
     setInsertColumns(updated);
   };
 
-  const handleExportClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleExportClose = () => {
-    setAnchorEl(null);
-  };
-
   const handleExport = async (format: 'csv' | 'excel') => {
     if (!result || !result.rows || result.rows.length === 0) {
       setError('No data to export');
-      handleExportClose();
       return;
     }
 
@@ -494,10 +482,12 @@ const SQLEditorPage: React.FC = () => {
       link.download = `export_${new Date().getTime()}.${format === 'csv' ? 'csv' : 'xlsx'}`;
       link.click();
       window.URL.revokeObjectURL(url);
+      
+      // Show success message
+      setError(''); // Clear any existing errors
+      // You could add a success state here if needed
     } catch {
       setError('Export failed');
-    } finally {
-      handleExportClose();
     }
   };
 
@@ -1222,22 +1212,25 @@ const SQLEditorPage: React.FC = () => {
                     variant="outlined" 
                   />
                 </Box>
-                <Box>
-                  <IconButton onClick={handleExportClick} disabled={!result.rows || result.rows.length === 0}>
-                    <MoreVertIcon />
-                  </IconButton>
-                  <Menu
-                    anchorEl={anchorEl}
-                    open={Boolean(anchorEl)}
-                    onClose={handleExportClose}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={() => handleExport('csv')}
+                    disabled={!result.rows || result.rows.length === 0}
                   >
-                    <MenuItem onClick={() => handleExport('csv')}>
-                      <FileDownloadIcon sx={{ mr: 1 }} /> Export as CSV
-                    </MenuItem>
-                    <MenuItem onClick={() => handleExport('excel')}>
-                      <FileDownloadIcon sx={{ mr: 1 }} /> Export as Excel
-                    </MenuItem>
-                  </Menu>
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<FileDownloadIcon />}
+                    onClick={() => handleExport('excel')}
+                    disabled={!result.rows || result.rows.length === 0}
+                  >
+                    Export Excel
+                  </Button>
                 </Box>
               </Box>
               <TableContainer sx={{ maxHeight: 600 }}>
