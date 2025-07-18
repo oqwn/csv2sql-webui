@@ -35,8 +35,9 @@ import {
   FileDownload as FileDownloadIcon,
   ContentCopy as ContentCopyIcon,
   Clear as ClearIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
-import { sqlAPI, exportAPI } from '../services/api';
+import { sqlAPI, exportAPI, importAPI } from '../services/api';
 import { SQLEditor } from '../components/sql/SQLEditor';
 import { generateBulkInsertSQL } from '../utils/dataGenerator';
 
@@ -164,6 +165,9 @@ const SQLEditorPage: React.FC = () => {
   const [showBulkGenerate, setShowBulkGenerate] = useState(false);
   const [bulkRowCount, setBulkRowCount] = useState<100 | 1000 | 10000>(100);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [importTableName, setImportTableName] = useState('');
 
   const executeQuery = async (sqlQuery?: string) => {
     const queryToExecute = sqlQuery || query;
@@ -495,6 +499,72 @@ const SQLEditorPage: React.FC = () => {
     navigator.clipboard.writeText(text);
   };
 
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
+      setError('Please upload a CSV or Excel file');
+      return;
+    }
+    setUploadFile(file);
+    setError('');
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!uploadFile) {
+      setError('Please select a file to import');
+      return;
+    }
+
+    if (!importTableName.trim()) {
+      setError('Please enter a table name');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await importAPI.uploadCSV(uploadFile, importTableName);
+      setResult({
+        columns: ['Status'],
+        rows: [[response.data.message || 'Import successful']],
+        row_count: response.data.rows_imported || 0,
+        execution_time: 0,
+        executedQuery: `IMPORT ${uploadFile.name} INTO ${importTableName}`
+      });
+      setUploadFile(null);
+      await fetchTables();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Import failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
@@ -512,6 +582,7 @@ const SQLEditorPage: React.FC = () => {
           <Tab label="Query Editor" icon={<PlayArrowIcon />} iconPosition="start" />
           <Tab label="Create Table" icon={<TableChartIcon />} iconPosition="start" />
           <Tab label="Insert Data" icon={<AddIcon />} iconPosition="start" />
+          <Tab label="Import Data" icon={<CloudUploadIcon />} iconPosition="start" />
         </Tabs>
 
         <Box sx={{ p: 2 }}>
@@ -1148,6 +1219,102 @@ const SQLEditorPage: React.FC = () => {
                   </Button>
                 </Box>
               </Grid>
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={activeTab} index={3}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    border: dragActive ? '2px dashed primary.main' : '2px dashed grey.300',
+                    borderRadius: 2,
+                    p: 4,
+                    textAlign: 'center',
+                    bgcolor: dragActive ? 'action.hover' : 'background.paper',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById('file-input')?.click()}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Drag and drop your CSV or Excel file here
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    or click to browse
+                  </Typography>
+                  <input
+                    id="file-input"
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileInput}
+                    style={{ display: 'none' }}
+                  />
+                  {uploadFile && (
+                    <Chip
+                      label={uploadFile.name}
+                      onDelete={() => setUploadFile(null)}
+                      color="primary"
+                      sx={{ mt: 2 }}
+                    />
+                  )}
+                </Box>
+              </Grid>
+              
+              {uploadFile && (
+                <>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Table Name"
+                      value={importTableName}
+                      onChange={(e) => setImportTableName(e.target.value)}
+                      placeholder="Enter table name for imported data"
+                      helperText="The table will be created if it doesn't exist"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Alert severity="info">
+                      <AlertTitle>Import Information</AlertTitle>
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        <li>File: {uploadFile.name}</li>
+                        <li>Size: {(uploadFile.size / 1024).toFixed(2)} KB</li>
+                        <li>Type: {uploadFile.type || 'CSV'}</li>
+                        <li>First row will be used as column headers</li>
+                        <li>Data types will be automatically detected</li>
+                      </ul>
+                    </Alert>
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={handleImport}
+                        disabled={!importTableName.trim() || loading}
+                      >
+                        {loading ? 'Importing...' : 'Import Data'}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setUploadFile(null);
+                          setImportTableName('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </Box>
+                  </Grid>
+                </>
+              )}
             </Grid>
           </TabPanel>
         </Box>
