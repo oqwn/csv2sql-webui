@@ -155,11 +155,12 @@ const SQLEditorPage: React.FC = () => {
   const [idColumnName, setIdColumnName] = useState('id');
   const [columns, setColumns] = useState<Array<{name: string; type: string; constraints: string; customType: boolean; customConstraints: boolean}>>([{name: '', type: 'VARCHAR(255)', constraints: '', customType: false, customConstraints: false}]);
   const [insertTableName, setInsertTableName] = useState('');
-  const [insertColumns, setInsertColumns] = useState<Array<{column: string; value: string}>>([{column: '', value: ''}]);
+  const [insertColumns, setInsertColumns] = useState<Array<{column: string; value: string; useDropdown: boolean}>>([{column: '', value: '', useDropdown: true}]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
   const [tables, setTables] = useState<string[]>([]);
+  const [tableColumns, setTableColumns] = useState<Array<{name: string; type: string; nullable: boolean; default: string | null}>>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const executeQuery = async (sqlQuery?: string) => {
@@ -195,6 +196,16 @@ const SQLEditorPage: React.FC = () => {
       setTables(response.data.tables || []);
     } catch (err) {
       console.error('Failed to fetch tables:', err);
+    }
+  };
+
+  const fetchTableColumns = async (tableName: string) => {
+    try {
+      const response = await sqlAPI.getTableColumns(tableName);
+      setTableColumns(response.data.columns || []);
+    } catch (err) {
+      console.error('Failed to fetch table columns:', err);
+      setTableColumns([]);
     }
   };
 
@@ -373,16 +384,23 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const addInsertColumn = () => {
-    setInsertColumns([...insertColumns, {column: '', value: ''}]);
+    setInsertColumns([...insertColumns, {column: '', value: '', useDropdown: true}]);
   };
 
   const removeInsertColumn = (index: number) => {
     setInsertColumns(insertColumns.filter((_, i) => i !== index));
   };
 
-  const updateInsertColumn = (index: number, field: 'column' | 'value', value: string) => {
+  const updateInsertColumn = (index: number, field: 'column' | 'value' | 'useDropdown', value: string | boolean) => {
     const updated = [...insertColumns];
-    updated[index][field] = value;
+    if (field === 'useDropdown') {
+      updated[index][field] = value as boolean;
+      if (value === false) {
+        updated[index]['column'] = ''; // Clear column when switching to text mode
+      }
+    } else {
+      updated[index][field] = value as string;
+    }
     setInsertColumns(updated);
   };
 
@@ -746,7 +764,15 @@ const SQLEditorPage: React.FC = () => {
                   select
                   label="Table"
                   value={insertTableName}
-                  onChange={(e) => setInsertTableName(e.target.value)}
+                  onChange={(e) => {
+                    const tableName = e.target.value;
+                    setInsertTableName(tableName);
+                    if (tableName) {
+                      fetchTableColumns(tableName);
+                    } else {
+                      setTableColumns([]);
+                    }
+                  }}
                   placeholder="Select a table"
                 >
                   {tables.map((table) => (
@@ -763,15 +789,52 @@ const SQLEditorPage: React.FC = () => {
                 {insertColumns.map((col, index) => (
                   <Grid container spacing={1} key={index} sx={{ mb: 1 }}>
                     <Grid item xs={5}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        label="Column"
-                        value={col.column}
-                        onChange={(e) => updateInsertColumn(index, 'column', e.target.value)}
-                        placeholder="e.g., name, email"
-                        helperText={col.column.toLowerCase().includes('id') ? 'ID columns are usually auto-generated' : ''}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              size="small"
+                              checked={col.useDropdown}
+                              onChange={(e) => updateInsertColumn(index, 'useDropdown', e.target.checked)}
+                              disabled={tableColumns.length === 0}
+                            />
+                          }
+                          label="Select"
+                          sx={{ mb: 0 }}
+                        />
+                        {col.useDropdown && tableColumns.length > 0 ? (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            select
+                            label="Column"
+                            value={col.column}
+                            onChange={(e) => updateInsertColumn(index, 'column', e.target.value)}
+                            disabled={tableColumns.length === 0}
+                          >
+                            {tableColumns.map((column) => (
+                              <MenuItem key={column.name} value={column.name}>
+                                <Box>
+                                  <Typography variant="body2">{column.name}</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {column.type} {column.nullable ? '' : 'NOT NULL'} {column.default ? `DEFAULT ${column.default}` : ''}
+                                  </Typography>
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        ) : (
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="Column Name"
+                            value={col.column}
+                            onChange={(e) => updateInsertColumn(index, 'column', e.target.value)}
+                            placeholder="e.g., name, email"
+                            helperText={col.column.toLowerCase().includes('id') ? 'ID columns are usually auto-generated' : ''}
+                          />
+                        )}
+                      </Box>
                     </Grid>
                     <Grid item xs={6}>
                       <TextField

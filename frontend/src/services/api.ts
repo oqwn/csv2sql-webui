@@ -16,6 +16,7 @@ const api = axios.create({
 export const sqlAPI = {
   executeQuery: (sql: string) => api.post('/sql/execute', { sql }),
   getTables: () => api.get('/sql/tables'),
+  getTableColumns: (tableName: string) => api.get(`/sql/tables/${tableName}/columns`),
 };
 
 export const importAPI = {
