@@ -63,8 +63,12 @@ uvicorn main:app --reload
 
 ```bash
 cd frontend
-npm install
-npm start
+# Install pnpm if not already installed
+corepack enable && corepack prepare pnpm@latest --activate
+# Install dependencies
+pnpm install
+# Start dev server
+pnpm start
 ```
 
 ### Creating Initial User

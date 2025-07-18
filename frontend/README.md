@@ -4,49 +4,56 @@ Modern React frontend for SQL WebUI built with Vite, TypeScript, and Material-UI
 
 ## Tech Stack
 
-- **Build Tool**: Vite 6 (latest)
+- **Build Tool**: Vite 5
 - **Framework**: React 18.3
 - **Language**: TypeScript 5.6
-- **UI Library**: Material-UI v6 (latest)
-- **Routing**: React Router v7 (latest)
+- **UI Library**: Material-UI v5
+- **Routing**: React Router v6
 - **State Management**: React Context + TanStack Query v5
 - **HTTP Client**: Axios
 - **Linting**: ESLint 9 with flat config
+- **Package Manager**: pnpm (for performance)
 
 ## Development
 
 ### Prerequisites
 
 - Node.js 20+
-- npm or yarn
+- pnpm 8+ (install with `corepack enable && corepack prepare pnpm@latest --activate`)
 
 ### Setup
 
-1. Install dependencies:
+1. Install pnpm (if not already installed):
 ```bash
-npm install
+corepack enable
+corepack prepare pnpm@latest --activate
 ```
 
-2. Create a `.env.local` file:
+2. Install dependencies:
+```bash
+pnpm install
+```
+
+3. Create a `.env.local` file:
 ```bash
 VITE_API_URL=http://localhost:8000/api/v1
 ```
 
-3. Start development server:
+4. Start development server:
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The app will be available at http://localhost:3000
 
 ### Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run typecheck` - Run TypeScript type checking
-- `npm test` - Run tests with Vitest
+- `pnpm run dev` - Start development server
+- `pnpm run build` - Build for production
+- `pnpm run preview` - Preview production build
+- `pnpm run lint` - Run ESLint
+- `pnpm run typecheck` - Run TypeScript type checking
+- `pnpm test` - Run tests with Vitest
 
 ## Project Structure
 
