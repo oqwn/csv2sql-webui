@@ -1,10 +1,15 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import AnyHttpUrl, field_validator, ConfigDict
 from pydantic_settings import BaseSettings
 import os
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(
+        case_sensitive=True,
+        env_file=".env"
+    )
+
     PROJECT_NAME: str = "SQL WebUI"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
@@ -30,10 +35,6 @@ class Settings(BaseSettings):
         elif isinstance(v, (list, str)):
             return v
         raise ValueError(v)
-    
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
 
 
 settings = Settings()
