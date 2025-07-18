@@ -1,8 +1,6 @@
 import time
-from typing import cast, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from sqlalchemy.engine import Result
 from app.models.user import User
 from app.schemas.sql import SQLResult
 
