@@ -1,9 +1,8 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, users, sql, csv_import
+from app.api.v1.endpoints import sql, csv_import, export
 
 api_router = APIRouter()
 
-api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
-api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(sql.router, prefix="/sql", tags=["sql"])
 api_router.include_router(csv_import.router, prefix="/import", tags=["import"])
+api_router.include_router(export.router, prefix="/export", tags=["export"])

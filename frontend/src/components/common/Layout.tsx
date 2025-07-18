@@ -12,16 +12,13 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Code as CodeIcon,
   CloudUpload as CloudUploadIcon,
-  Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
 
 const drawerWidth = 240;
 
@@ -29,7 +26,6 @@ const Layout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -82,12 +78,6 @@ const Layout: React.FC = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             SQL WebUI
           </Typography>
-          <Typography variant="body2" sx={{ mr: 2 }}>
-            {user?.email}
-          </Typography>
-          <Button color="inherit" onClick={logout} startIcon={<LogoutIcon />}>
-            Logout
-          </Button>
         </Toolbar>
       </AppBar>
       <Box

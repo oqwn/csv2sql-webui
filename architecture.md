@@ -162,8 +162,9 @@ backend/
 │   │       └── endpoints/       # API endpoints
 │   │           ├── auth.py      # Authentication endpoints
 │   │           ├── users.py     # User management
-│   │           ├── sql.py       # SQL execution
-│   │           └── csv_import.py # CSV import
+│   │           ├── sql.py       # SQL execution & table list
+│   │           ├── csv_import.py # CSV import
+│   │           └── export.py    # Data export (CSV/Excel)
 │   ├── core/
 │   │   ├── config.py            # Application settings
 │   │   └── security.py          # JWT & password hashing
@@ -175,7 +176,8 @@ backend/
 │   ├── schemas/
 │   │   ├── user.py              # User Pydantic schemas
 │   │   ├── token.py             # Auth token schemas
-│   │   └── sql.py               # SQL query/result schemas
+│   │   ├── sql.py               # SQL query/result schemas
+│   │   └── export.py            # Data export schemas
 │   └── services/
 │       ├── auth.py              # Authentication logic
 │       ├── user.py              # User service

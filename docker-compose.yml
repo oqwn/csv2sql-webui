@@ -34,7 +34,6 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/sqlwebui
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-here-change-in-production}
       BACKEND_CORS_ORIGINS: '["http://localhost:3000","http://localhost:8000","http://localhost"]'
     volumes:
       - ./backend:/app

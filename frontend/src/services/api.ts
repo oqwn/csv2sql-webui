@@ -9,36 +9,13 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// No authentication needed
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
-export const authAPI = {
-  login: (username: string, password: string) =>
-    api.post('/auth/login', new URLSearchParams({ username, password }), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    }),
-  register: (data: any) => api.post('/users/', data),
-  getMe: () => api.get('/users/me'),
-};
+// Authentication endpoints removed
 
 export const sqlAPI = {
   executeQuery: (sql: string) => api.post('/sql/execute', { sql }),
+  getTables: () => api.get('/sql/tables'),
 };
 
 export const importAPI = {
@@ -52,6 +29,13 @@ export const importAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+};
+
+export const exportAPI = {
+  exportData: (data: { data: any[], columns: string[], format: 'csv' | 'excel', filename: string }) => 
+    api.post('/export/data', data, {
+      responseType: 'blob',
+    }),
 };
 
 export default api;

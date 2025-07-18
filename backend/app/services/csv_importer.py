@@ -2,14 +2,12 @@ import pandas as pd
 import io
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
-from app.models.user import User
 
 
 async def import_csv_to_table(
     db: Session, 
     file: UploadFile, 
-    table_name: str,
-    user: User
+    table_name: str
 ) -> dict:
     contents = await file.read()
     df = pd.read_csv(io.StringIO(contents.decode('utf-8')))

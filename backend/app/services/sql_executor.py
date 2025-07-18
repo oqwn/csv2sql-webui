@@ -3,11 +3,10 @@ from typing import cast
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from sqlalchemy.engine import CursorResult
-from app.models.user import User
 from app.schemas.sql import SQLResult
 
 
-def execute_query(db: Session, query: str, user: User) -> SQLResult:
+def execute_query(db: Session, query: str) -> SQLResult:
     start_time = time.time()
     
     result = db.execute(text(query))
