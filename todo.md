@@ -1,24 +1,23 @@
 # SQL Web UI - Todo List
 
 ## Phase 0: Docker Infrastructure
-- [ ] Create base Dockerfile for frontend (Node.js/Nginx)
-- [ ] Create base Dockerfile for backend services
-- [ ] Create docker-compose.yml for development environment
-- [ ] Create docker-compose.prod.yml for production deployment
-- [ ] Set up Docker networking and service discovery
-- [ ] Create .dockerignore files
-- [ ] Set up Docker health checks for all services
+- [x] Create base Dockerfile for frontend (Node.js/Nginx)
+- [x] Create base Dockerfile for backend services
+- [x] Create docker-compose.yml for development environment
+- [x] Set up Docker networking and service discovery
+- [x] Create .dockerignore files
+- [x] Set up Docker health checks for all services
 - [ ] Create docker-compose.test.yml for testing environment
-- [ ] Write Docker setup documentation
+- [x] Write Docker setup documentation
 - [ ] Create one-click deployment script
 
 ## Phase 1: Core Infrastructure
-- [ ] Set up project structure (frontend, backend, database)
-- [ ] Configure development environment and build tools
-- [ ] Set up basic web server and routing
-- [ ] Create database connection layer
-- [ ] Implement basic authentication system
-- [ ] Dockerize all core services
+- [x] Set up project structure (frontend, backend, database)
+- [x] Configure development environment and build tools
+- [x] Set up basic web server and routing
+- [x] Create database connection layer
+- [x] Implement basic authentication system
+- [x] Dockerize all core services
 
 ## Phase 2: SQL Grammar & Parser
 - [ ] Design SQL grammar specification
