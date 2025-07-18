@@ -1,5 +1,4 @@
 import time
-from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from app.models.user import User

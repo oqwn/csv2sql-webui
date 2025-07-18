@@ -2,7 +2,6 @@ import pandas as pd
 import io
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from app.models.user import User
 
 
