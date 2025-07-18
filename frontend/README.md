@@ -17,7 +17,7 @@ Modern React frontend for SQL WebUI built with Vite, TypeScript, and Material-UI
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - npm or yarn
 
 ### Setup

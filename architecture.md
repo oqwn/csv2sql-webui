@@ -23,6 +23,7 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 - **Routing**: React Router v6
 - **HTTP Client**: Axios
 - **Build Tool**: Vite 5 (replaced Create React App)
+- **Node.js**: v20+ (required for development)
 
 #### Backend
 - **Framework**: Python 3.11 with FastAPI

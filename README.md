@@ -21,7 +21,7 @@ A powerful web-based SQL management tool with CSV/Excel import/export, batch sch
 ### Prerequisites
 
 - Docker and Docker Compose installed
-- Node.js 18+ (for local development)
+- Node.js 20+ (for local development)
 - Python 3.11+ (for local development)
 
 ### Running with Docker

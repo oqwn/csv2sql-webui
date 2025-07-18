@@ -60,7 +60,7 @@ services:
 
   # Development-only service for React hot-reloading
   frontend-dev:
-    image: node:18-alpine
+    image: node:20-alpine
     working_dir: /app
     volumes:
       - ./frontend:/app
