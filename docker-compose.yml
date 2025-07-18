@@ -68,8 +68,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      REACT_APP_API_URL: http://localhost:8000/api/v1
-    command: npm start
+      VITE_API_URL: http://localhost:8000/api/v1
+    command: sh -c "npm install && npm run dev"
     profiles:
       - dev
 

@@ -19,10 +19,10 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 #### Frontend
 - **Framework**: React 18 with TypeScript
 - **UI Library**: Material-UI (MUI) v5
-- **State Management**: React Context API + React Query
+- **State Management**: React Context API + React Query (TanStack Query)
 - **Routing**: React Router v6
 - **HTTP Client**: Axios
-- **Build Tool**: Create React App (webpack)
+- **Build Tool**: Vite 5 (replaced Create React App)
 
 #### Backend
 - **Framework**: Python 3.11 with FastAPI
@@ -132,6 +132,21 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 │  └────────────┘  └────────────┘  └────────────┘           │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+## Recent Architecture Updates
+
+### Frontend Build Tool Migration (Vite)
+We migrated from Create React App to Vite for the following benefits:
+- **Faster Development**: Instant server start and hot module replacement
+- **Better Performance**: Native ES modules in development
+- **Modern Tooling**: Built-in TypeScript support and optimized production builds
+- **Simplified Configuration**: Less boilerplate and easier customization
+
+Key changes:
+- Environment variables now use `VITE_` prefix instead of `REACT_APP_`
+- Configuration in `vite.config.ts` instead of webpack config
+- `index.html` moved to project root
+- Direct import of TypeScript files without compilation step in dev
 
 ## Current Implementation Details
 

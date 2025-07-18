@@ -1,46 +1,97 @@
-# Getting Started with Create React App
+# SQL WebUI Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Modern React frontend for SQL WebUI built with Vite, TypeScript, and Material-UI.
 
-## Available Scripts
+## Tech Stack
 
-In the project directory, you can run:
+- **Build Tool**: Vite 6 (latest)
+- **Framework**: React 18.3
+- **Language**: TypeScript 5.6
+- **UI Library**: Material-UI v6 (latest)
+- **Routing**: React Router v7 (latest)
+- **State Management**: React Context + TanStack Query v5
+- **HTTP Client**: Axios
+- **Linting**: ESLint 9 with flat config
 
-### `npm start`
+## Development
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Prerequisites
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- Node.js 18+
+- npm or yarn
 
-### `npm test`
+### Setup
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Install dependencies:
+```bash
+npm install
+```
 
-### `npm run build`
+2. Create a `.env.local` file:
+```bash
+VITE_API_URL=http://localhost:8000/api/v1
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. Start development server:
+```bash
+npm run dev
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+The app will be available at http://localhost:3000
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Available Scripts
 
-### `npm run eject`
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run typecheck` - Run TypeScript type checking
+- `npm test` - Run tests with Vitest
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+## Project Structure
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+src/
+├── components/      # Reusable components
+│   ├── auth/       # Authentication components
+│   └── common/     # Common UI components
+├── contexts/       # React contexts
+├── pages/          # Page components
+├── services/       # API services
+└── utils/          # Utility functions
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Docker Development
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+To run with Docker:
 
-## Learn More
+```bash
+# Development with hot reload
+docker-compose --profile dev up frontend-dev
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+# Production build
+docker-compose up frontend
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Building for Production
+
+```bash
+npm run build
+```
+
+The production build will be in the `build/` directory.
+
+## Environment Variables
+
+- `VITE_API_URL` - Backend API URL (default: http://localhost:8000/api/v1)
+
+## Key Features
+
+- ✅ Modern build tooling with Vite
+- ✅ TypeScript for type safety
+- ✅ Material-UI components
+- ✅ JWT authentication
+- ✅ Protected routes
+- ✅ API interceptors for auth
+- ✅ Hot module replacement
+- ✅ Optimized production builds
