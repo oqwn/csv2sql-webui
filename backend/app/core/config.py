@@ -1,5 +1,5 @@
 from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
 
@@ -21,16 +21,36 @@ class Settings(BaseSettings):
     
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000", 
+        "http://localhost",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000"
+    ]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode='before')
     @classmethod
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
+        if isinstance(v, str):
+            if v.startswith("[") and v.endswith("]"):
+                # Handle JSON string format
+                import json
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    pass
+            # Handle comma-separated string
             return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
+        elif isinstance(v, list):
             return v
-        raise ValueError(v)
+        return [
+            "http://localhost:3000",
+            "http://localhost:8000", 
+            "http://localhost",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8000"
+        ]
 
 
 settings = Settings()
