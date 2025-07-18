@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import { sqlAPI, exportAPI } from '../services/api';
 import { SQLEditor } from '../components/sql/SQLEditor';
+import { generateBulkInsertSQL } from '../utils/dataGenerator';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -162,6 +163,9 @@ const SQLEditorPage: React.FC = () => {
   const [tables, setTables] = useState<string[]>([]);
   const [tableColumns, setTableColumns] = useState<Array<{name: string; type: string; nullable: boolean; default: string | null}>>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showBulkGenerate, setShowBulkGenerate] = useState(false);
+  const [bulkRowCount, setBulkRowCount] = useState<100 | 1000 | 10000>(100);
+  const [includeNullableColumns, setIncludeNullableColumns] = useState(false);
 
   const executeQuery = async (sqlQuery?: string) => {
     const queryToExecute = sqlQuery || query;
@@ -276,6 +280,11 @@ const SQLEditorPage: React.FC = () => {
       return '';
     }
 
+    // If bulk generation is enabled, use the generator
+    if (showBulkGenerate && tableColumns.length > 0) {
+      return generateBulkInsertSQL(insertTableName, tableColumns, bulkRowCount, includeNullableColumns);
+    }
+
     const validColumns = insertColumns.filter(col => col.column.trim() && col.value.trim());
     if (validColumns.length === 0) {
       return '';
@@ -338,6 +347,15 @@ const SQLEditorPage: React.FC = () => {
   const handleInsertData = () => {
     if (!insertTableName.trim()) {
       setError('Please select a table');
+      return;
+    }
+
+    // For bulk generation, no need to validate individual columns
+    if (showBulkGenerate && tableColumns.length > 0) {
+      const sql = generateInsertSQL();
+      if (sql) {
+        executeQuery(sql);
+      }
       return;
     }
 
@@ -815,16 +833,86 @@ const SQLEditorPage: React.FC = () => {
               </Grid>
               <Grid item xs={12}>
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Values
-                  </Typography>
-                  {tableColumns.length > 0 && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                      All table columns are shown below. Fill in values for each column (required fields are marked).
-                    </Typography>
-                  )}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="h6" gutterBottom>
+                        Values
+                      </Typography>
+                      {tableColumns.length > 0 && !showBulkGenerate && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                          All table columns are shown below. Fill in values for each column (required fields are marked).
+                        </Typography>
+                      )}
+                    </Box>
+                    {tableColumns.length > 0 && (
+                      <Button
+                        variant={showBulkGenerate ? "contained" : "outlined"}
+                        size="small"
+                        onClick={() => setShowBulkGenerate(!showBulkGenerate)}
+                      >
+                        {showBulkGenerate ? 'Manual Entry' : 'Generate Test Data'}
+                      </Button>
+                    )}
+                  </Box>
                 </Box>
-                {insertColumns.map((col, index) => {
+                
+                {showBulkGenerate ? (
+                  <Paper variant="outlined" sx={{ p: 3, mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Generate Test Data
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Automatically generate realistic test data for your table. Data is generated based on column names and types.
+                    </Typography>
+                    
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Number of Rows</InputLabel>
+                          <Select
+                            value={bulkRowCount}
+                            label="Number of Rows"
+                            onChange={(e) => setBulkRowCount(e.target.value as 100 | 1000 | 10000)}
+                          >
+                            <MenuItem value={100}>100 rows</MenuItem>
+                            <MenuItem value={1000}>1,000 rows</MenuItem>
+                            <MenuItem value={10000}>10,000 rows</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={includeNullableColumns}
+                              onChange={(e) => setIncludeNullableColumns(e.target.checked)}
+                            />
+                          }
+                          label="Include nullable columns"
+                        />
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          By default, only required columns are filled
+                        </Typography>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Alert severity="info">
+                          <AlertTitle>Smart Data Generation</AlertTitle>
+                          <ul style={{ margin: 0, paddingLeft: 20 }}>
+                            <li>Names: Realistic first and last names</li>
+                            <li>Addresses: Real city names and street addresses</li>
+                            <li>Emails, usernames: Common patterns</li>
+                            <li>Titles, descriptions: Relevant sample text</li>
+                            <li>Numbers: Random values within reasonable ranges</li>
+                            <li>Dates: Recent dates within the last few years</li>
+                          </ul>
+                        </Alert>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                ) : (
+                  insertColumns.map((col, index) => {
                   const columnInfo = tableColumns.find(tc => tc.name === col.column);
                   const isRequired = columnInfo && !columnInfo.nullable && !columnInfo.default;
                   const isAutoGenerated = (columnInfo?.default && columnInfo.default.includes('nextval')) || 
@@ -935,8 +1023,9 @@ const SQLEditorPage: React.FC = () => {
                       </Grid>
                     </Grid>
                   );
-                })}
-                {tableColumns.length === 0 && (
+                })
+                )}
+                {tableColumns.length === 0 && !showBulkGenerate && (
                   <Button
                     variant="outlined"
                     startIcon={<AddIcon />}
@@ -964,9 +1053,9 @@ const SQLEditorPage: React.FC = () => {
                     variant="contained"
                     startIcon={<PlayArrowIcon />}
                     onClick={handleInsertData}
-                    disabled={!insertTableName.trim() || insertColumns.filter(c => c.column && c.value).length === 0 || loading}
+                    disabled={!insertTableName.trim() || (!showBulkGenerate && insertColumns.filter(c => c.column && c.value).length === 0) || loading}
                   >
-                    {loading ? 'Inserting...' : 'Insert Data'}
+                    {loading ? 'Inserting...' : showBulkGenerate ? `Generate ${bulkRowCount} Rows` : 'Insert Data'}
                   </Button>
                   <Button
                     variant="outlined"
