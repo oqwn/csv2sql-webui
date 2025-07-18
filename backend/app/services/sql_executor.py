@@ -10,9 +10,12 @@ def execute_query(db: Session, query: str, user: User) -> SQLResult:
     
     result = db.execute(text(query))
     
-    columns = list(result.keys()) if result.returns_rows else []
-    rows = [list(row) for row in result] if result.returns_rows else []
-    row_count = result.rowcount
+    # Check if result has rows
+    has_rows = result._soft_closed is False and result.returns_rows
+    
+    columns = list(result.keys()) if has_rows else []
+    rows = [list(row) for row in result] if has_rows else []
+    row_count = result.rowcount if result.rowcount is not None else 0
     
     execution_time = time.time() - start_time
     
