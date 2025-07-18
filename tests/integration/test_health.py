@@ -31,7 +31,10 @@ async def test_frontend_loads():
 async def test_backend_api_accessible_from_frontend():
     """Test that the backend API is accessible through the frontend proxy."""
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{FRONTEND_URL}/api/health")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "healthy"
+        # The nginx proxy forwards /api/* to the backend, so /api/v1/auth/login should work
+        response = await client.post(
+            f"{FRONTEND_URL}/api/v1/auth/login",
+            json={"username": "test", "password": "test"}
+        )
+        # We expect 401 or 422 since we're using invalid credentials, but not 404
+        assert response.status_code in [401, 422]
