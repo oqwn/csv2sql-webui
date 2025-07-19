@@ -1,9 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, JSON
-from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 from enum import Enum
-
-Base = declarative_base()
+from app.db.base import Base
 
 
 class DataSourceType(str, Enum):

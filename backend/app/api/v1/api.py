@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import sql, csv_import, excel_import, export, table_crud
+from app.api.v1.endpoints import sql, csv_import, excel_import, export, table_crud, data_sources
 
 api_router = APIRouter()
 
@@ -8,3 +8,4 @@ api_router.include_router(csv_import.router, prefix="/import", tags=["import"])
 api_router.include_router(excel_import.router, prefix="/import", tags=["import"])
 api_router.include_router(export.router, prefix="/export", tags=["export"])
 api_router.include_router(table_crud.router, prefix="/tables", tags=["tables"])
+api_router.include_router(data_sources.router, prefix="/data-sources", tags=["data-sources"])
