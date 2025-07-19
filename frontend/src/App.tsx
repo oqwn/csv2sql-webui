@@ -6,6 +6,7 @@ import Layout from './components/common/Layout';
 import DashboardPage from './pages/DashboardPage';
 import SQLEditorPage from './pages/SQLEditorPage';
 import TableManagerPage from './pages/TableManagerPage';
+import DataSourcesPage from './pages/DataSourcesPage';
 
 const theme = createTheme({
   palette: {
@@ -89,6 +90,7 @@ function App() {
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="sql-editor" element={<SQLEditorPage />} />
               <Route path="tables" element={<TableManagerPage />} />
+              <Route path="data-sources" element={<DataSourcesPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

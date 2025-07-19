@@ -20,6 +20,7 @@ import {
   CloudUpload as CloudUploadIcon,
   TableChart as TableChartIcon,
   Storage as StorageIcon,
+  Cable as CableIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -35,6 +36,7 @@ const Layout: React.FC = () => {
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Data Sources', icon: <CableIcon />, path: '/data-sources' },
     { text: 'Table Manager', icon: <TableChartIcon />, path: '/tables' },
     { text: 'SQL Editor', icon: <CodeIcon />, path: '/sql-editor' },
     { text: 'Import Data', icon: <CloudUploadIcon />, path: '/sql-editor?tab=import' },
