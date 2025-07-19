@@ -32,6 +32,36 @@ export const importAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  previewCSV: (file: File, sampleSize: number = 10) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('sample_size', String(sampleSize));
+    
+    return api.post('/import/csv/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  importCSVWithConfig: (file: File, config: {
+    table_name: string;
+    columns: Array<{
+      name: string;
+      type: string;
+      nullable?: boolean;
+      primary_key?: boolean;
+      unique?: boolean;
+      default_value?: string;
+    }>;
+  }) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('config', JSON.stringify(config));
+    
+    return api.post('/import/csv/import-with-config', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   
   uploadExcel: (file: File, tableName?: string, sheetName?: string, importAllSheets: boolean = false, createTable: boolean = true, detectTypes: boolean = true) => {
     const formData = new FormData();

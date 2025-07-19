@@ -41,6 +41,7 @@ import {
 import { sqlAPI, exportAPI, importAPI } from '../services/api';
 import { SQLEditor } from '../components/sql/SQLEditor';
 import { generateBulkInsertSQL } from '../utils/dataGenerator';
+import CSVColumnConfigDialog from '../components/import/CSVColumnConfigDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -177,6 +178,8 @@ const SQLEditorPage: React.FC = () => {
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [importAllSheets, setImportAllSheets] = useState(false);
   const [showTypeDetection, setShowTypeDetection] = useState(true);
+  const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
+  const [useAdvancedConfig, setUseAdvancedConfig] = useState(false);
 
   const executeQuery = async (sqlQuery?: string) => {
     const queryToExecute = sqlQuery || query;
@@ -591,6 +594,13 @@ const SQLEditorPage: React.FC = () => {
     }
 
     const isExcel = uploadFile.name.endsWith('.xlsx') || uploadFile.name.endsWith('.xls');
+    const isCSV = uploadFile.name.endsWith('.csv');
+
+    // For CSV files with advanced configuration, show the dialog
+    if (isCSV && useAdvancedConfig) {
+      setShowColumnConfigDialog(true);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -1402,6 +1412,21 @@ const SQLEditorPage: React.FC = () => {
                     />
                   </Grid>
                   
+                  {/* Advanced configuration for CSV */}
+                  {uploadFile?.name.endsWith('.csv') && (
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={useAdvancedConfig}
+                            onChange={(e) => setUseAdvancedConfig(e.target.checked)}
+                          />
+                        }
+                        label="Configure column types and constraints manually"
+                      />
+                    </Grid>
+                  )}
+                  
                   <Grid item xs={12}>
                     <Alert severity="info">
                       <AlertTitle>Import Information</AlertTitle>
@@ -1565,6 +1590,31 @@ const SQLEditorPage: React.FC = () => {
             </>
           )}
         </Paper>
+      )}
+      
+      {/* CSV Column Configuration Dialog */}
+      {uploadFile && (
+        <CSVColumnConfigDialog
+          open={showColumnConfigDialog}
+          onClose={() => setShowColumnConfigDialog(false)}
+          file={uploadFile}
+          tableName={importTableName}
+          onImport={async () => {
+            setShowColumnConfigDialog(false);
+            setUploadFile(null);
+            setImportTableName('');
+            setUseAdvancedConfig(false);
+            setError('');
+            // Show success in result
+            setResult({
+              message: 'CSV imported successfully with custom configuration',
+              row_count: -1,
+              columns: [],
+              execution_time: 0
+            });
+            await fetchTables();
+          }}
+        />
       )}
     </Box>
   );
