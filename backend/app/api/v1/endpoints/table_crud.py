@@ -311,3 +311,33 @@ async def get_table_info(
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/table/{table_name}")
+async def delete_table(
+    table_name: str,
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Delete a table from the database
+    """
+    try:
+        # Check if table exists
+        inspector = inspect(db.get_bind())
+        if table_name not in inspector.get_table_names():
+            raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
+        
+        # Drop the table
+        db.execute(text(f'DROP TABLE "{table_name}" CASCADE'))
+        db.commit()
+        
+        return {
+            "message": f"Table '{table_name}' deleted successfully",
+            "table_name": table_name
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))

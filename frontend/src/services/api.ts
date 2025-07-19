@@ -127,6 +127,9 @@ export const tableAPI = {
   
   getTableInfo: (table_name: string) =>
     api.get(`/tables/table/${table_name}/info`),
+  
+  deleteTable: (table_name: string) =>
+    api.delete(`/tables/table/${table_name}`),
 };
 
 export default api;

@@ -88,6 +88,7 @@ const TableManagerPage: React.FC = () => {
   // Delete confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteTableDialogOpen, setDeleteTableDialogOpen] = useState(false);
   
   // Search and filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -306,6 +307,25 @@ const TableManagerPage: React.FC = () => {
     }
   };
 
+  const handleDeleteTable = async () => {
+    if (!selectedTable) return;
+    
+    setLoading(true);
+    try {
+      await tableAPI.deleteTable(selectedTable);
+      setSuccess(`Table '${selectedTable}' deleted successfully`);
+      setDeleteTableDialogOpen(false);
+      setSelectedTable('');
+      setTableData([]);
+      setTableInfo(null);
+      await fetchTables();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to delete table');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -511,14 +531,24 @@ const TableManagerPage: React.FC = () => {
                       ))}
                     </Select>
                   </FormControl>
-                  <Button
-                    variant="contained"
-                    color="success"
-                    startIcon={<AddIcon />}
-                    onClick={handleAdd}
-                  >
-                    Add Record
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => setDeleteTableDialogOpen(true)}
+                    >
+                      Delete Table
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      startIcon={<AddIcon />}
+                      onClick={handleAdd}
+                    >
+                      Add Record
+                    </Button>
+                  </Box>
                 </Box>
               </Box>
 
@@ -692,6 +722,34 @@ const TableManagerPage: React.FC = () => {
             disabled={loading}
           >
             {loading ? <CircularProgress size={20} /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Table Confirmation Dialog */}
+      <Dialog open={deleteTableDialogOpen} onClose={() => setDeleteTableDialogOpen(false)}>
+        <DialogTitle>Delete Table</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Are you sure you want to delete the table <strong>{selectedTable}</strong>?
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              This action cannot be undone and will permanently delete all data in this table.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTableDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={handleDeleteTable}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : 'Delete Table'}
           </Button>
         </DialogActions>
       </Dialog>
