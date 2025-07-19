@@ -183,7 +183,6 @@ const SQLEditorPage: React.FC = () => {
   const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
   const [showSQLPreviewDialog, setShowSQLPreviewDialog] = useState(false);
   const [useAdvancedConfig, setUseAdvancedConfig] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
 
   const executeQuery = async (sqlQuery?: string) => {
@@ -539,205 +538,213 @@ const SQLEditorPage: React.FC = () => {
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      if (batchMode) {
-        handleMultipleFiles(Array.from(e.dataTransfer.files));
-      } else {
-        handleFile(e.dataTransfer.files[0]);
-      }
+      addFilesToQueue(Array.from(e.dataTransfer.files));
     }
   };
 
-  const handleFile = async (file: File) => {
-    const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-    
-    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv') && !isExcel) {
-      setError('Please upload a CSV or Excel file');
-      return;
-    }
-    
-    setUploadFile(file);
-    setError('');
-    setExcelSheets([]);
-    setSelectedSheet('');
-    setImportAllSheets(false);
-    
-    // If Excel file, get sheet names
-    if (isExcel) {
-      try {
-        const response = await importAPI.getExcelSheets(file);
-        setExcelSheets(response.data.sheets || []);
-        if (response.data.sheets && response.data.sheets.length > 0) {
-          setSelectedSheet(response.data.sheets[0]);
-        }
-      } catch (err) {
-        console.error('Failed to get Excel sheets:', err);
-      }
-    }
-    
-    // Auto-generate table name from filename
-    if (!importTableName) {
-      const suggestedName = file.name
-        .replace(/\.(csv|xlsx|xls)$/, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '_');
-      setImportTableName(suggestedName);
-    }
-  };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      if (batchMode) {
-        handleMultipleFiles(Array.from(e.target.files));
-      } else {
-        handleFile(e.target.files[0]);
-      }
+      addFilesToQueue(Array.from(e.target.files));
     }
   };
 
-  const handleMultipleFiles = (files: File[]) => {
-    const csvFiles = files.filter(file => 
-      file.name.endsWith('.csv') || file.type === 'text/csv'
-    );
-    
-    if (csvFiles.length === 0) {
-      setError('Please upload only CSV files for batch import');
-      return;
+  const addFilesToQueue = (newFiles: File[]) => {
+    const validFiles: File[] = [];
+    const invalidFiles: string[] = [];
+
+    newFiles.forEach(file => {
+      const isCSV = file.name.endsWith('.csv') || file.type === 'text/csv';
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      
+      if (isCSV || isExcel) {
+        // Check if file is already in queue
+        const isDuplicate = uploadFiles.some(existingFile => 
+          existingFile.name === file.name && existingFile.size === file.size
+        );
+        if (!isDuplicate) {
+          validFiles.push(file);
+        }
+      } else {
+        invalidFiles.push(file.name);
+      }
+    });
+
+    if (validFiles.length > 0) {
+      setUploadFiles(prev => [...prev, ...validFiles]);
+      setError('');
     }
-    
-    if (csvFiles.length !== files.length) {
-      setError(`Only CSV files are supported for batch import. ${files.length - csvFiles.length} non-CSV files were excluded.`);
+
+    if (invalidFiles.length > 0) {
+      setError(`Unsupported file types: ${invalidFiles.join(', ')}. Only CSV and Excel files are supported.`);
     }
-    
-    setUploadFiles(csvFiles);
-    setError('');
+  };
+
+  const removeFileFromQueue = (index: number) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearFileQueue = () => {
+    setUploadFiles([]);
+    setUploadFile(null);
+    setImportTableName('');
+    setExcelSheets([]);
+    setSelectedSheet('');
+    setImportAllSheets(false);
   };
 
   const handleImport = async () => {
-    if (!uploadFile) {
-      setError('Please select a file to import');
+    const filesToProcess = uploadFiles.length > 0 ? uploadFiles : (uploadFile ? [uploadFile] : []);
+    
+    if (filesToProcess.length === 0) {
+      setError('Please select files to import');
       return;
     }
 
-    if (!importTableName.trim()) {
-      setError('Please enter a table name');
-      return;
+    // Check if this is a single file import that needs special handling
+    if (filesToProcess.length === 1) {
+      const file = filesToProcess[0];
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      const isCSV = file.name.endsWith('.csv');
+
+      // For single CSV files with advanced configuration, show the SQL preview dialog
+      if (isCSV && useAdvancedConfig) {
+        setUploadFile(file); // Set for the dialog
+        setShowSQLPreviewDialog(true);
+        return;
+      }
+
+      // For Excel files, handle sheet selection
+      if (isExcel && excelSheets.length === 0) {
+        try {
+          const response = await importAPI.getExcelSheets(file);
+          setExcelSheets(response.data.sheets || []);
+          if (response.data.sheets && response.data.sheets.length > 0) {
+            setSelectedSheet(response.data.sheets[0]);
+          }
+          setUploadFile(file); // Set for Excel handling
+          return; // Let user select sheet
+        } catch (err) {
+          console.error('Failed to get Excel sheets:', err);
+        }
+      }
+
+      // Handle single file import with custom table name
+      if (isExcel && (!importTableName.trim() || excelSheets.length > 0)) {
+        const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+        await importSingleFile(file, tableName);
+        return;
+      }
     }
 
-    const isExcel = uploadFile.name.endsWith('.xlsx') || uploadFile.name.endsWith('.xls');
-    const isCSV = uploadFile.name.endsWith('.csv');
-
-    // For CSV files with advanced configuration, show the SQL preview dialog
-    if (isCSV && useAdvancedConfig) {
-      setShowSQLPreviewDialog(true);
-      return;
-    }
-
+    // Handle multiple files or simple single file import
     setLoading(true);
+    setImportProgress({ current: 0, total: filesToProcess.length, status: 'Starting import...' });
+    
     try {
       let response;
       
-      if (isExcel) {
-        response = await importAPI.uploadExcel(
-          uploadFile, 
-          importTableName,
-          importAllSheets ? undefined : selectedSheet,
-          importAllSheets,
-          true, // create_table
-          showTypeDetection // detect_types
-        );
+      if (filesToProcess.length === 1) {
+        // Single file import
+        const file = filesToProcess[0];
+        const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+        response = await importSingleFile(file, tableName);
       } else {
-        response = await importAPI.uploadCSV(
-          uploadFile, 
-          importTableName,
-          true, // create_table
-          showTypeDetection // detect_types
-        );
+        // Multiple file import - separate CSV and Excel files
+        const csvFiles = filesToProcess.filter(f => f.name.endsWith('.csv'));
+        const excelFiles = filesToProcess.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+        
+        if (csvFiles.length > 0) {
+          response = await importAPI.uploadCSVBatch(
+            csvFiles,
+            true, // create_table
+            showTypeDetection // detect_types
+          );
+        }
+        
+        // TODO: Handle Excel batch import if needed
+        if (excelFiles.length > 0) {
+          setError('Excel batch import not yet supported. Please import Excel files one by one.');
+          return;
+        }
       }
       
       // Format result message
-      let message = response.data.message || 'Import successful';
-      if (response.data.column_types && showTypeDetection) {
-        const typeInfo = response.data.column_types
-          .map((col: any) => `${col.name} (${col.type})`)
-          .join(', ');
-        message += `\n\nDetected columns: ${typeInfo}`;
+      let message: string;
+      if (filesToProcess.length === 1 && response) {
+        message = response.data.message || 'Import successful';
+        if (response.data.column_types && showTypeDetection) {
+          const typeInfo = response.data.column_types
+            .map((col: any) => `${col.name} (${col.type})`)
+            .join(', ');
+          message += `\n\nDetected columns: ${typeInfo}`;
+        }
+      } else if (response) {
+        message = `Batch import completed:\n`;
+        message += `- Total files: ${response.data.total_files}\n`;
+        message += `- Successful: ${response.data.successful}\n`;
+        message += `- Failed: ${response.data.failed}\n\n`;
+        
+        if (response.data.results && response.data.results.length > 0) {
+          message += `Successfully imported tables:\n`;
+          response.data.results.forEach((result: any) => {
+            message += `- ${result.table_name}: ${result.row_count} rows\n`;
+          });
+        }
+        
+        if (response.data.errors && response.data.errors.length > 0) {
+          message += `\nErrors:\n`;
+          response.data.errors.forEach((error: any) => {
+            message += `- ${error.filename}: ${error.error}\n`;
+          });
+        }
+      } else {
+        message = 'Import failed - no response received';
       }
       
       setResult({
         columns: ['Status'],
         rows: [[message]],
-        row_count: response.data.row_count || 0,
+        row_count: response ? (typeof response.data.row_count === 'number' ? response.data.row_count : response.data.successful || 0) : 0,
         execution_time: 0,
-        executedQuery: `IMPORT ${uploadFile.name} INTO ${importTableName}`
+        executedQuery: filesToProcess.length === 1 
+          ? `IMPORT ${filesToProcess[0].name}` 
+          : `BATCH IMPORT ${filesToProcess.length} files`
       });
       
-      setUploadFile(null);
-      setImportTableName('');
-      setExcelSheets([]);
-      setSelectedSheet('');
+      clearFileQueue();
+      setImportProgress({ current: 0, total: 0, status: '' });
       await fetchTables();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Import failed');
+      setImportProgress({ current: 0, total: 0, status: '' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBatchImport = async () => {
-    if (uploadFiles.length === 0) {
-      setError('Please select CSV files to import');
-      return;
-    }
-
-    setLoading(true);
-    setImportProgress({ current: 0, total: uploadFiles.length, status: 'Starting batch import...' });
+  const importSingleFile = async (file: File, tableName: string) => {
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
     
-    try {
-      const response = await importAPI.uploadCSVBatch(
-        uploadFiles,
+    if (isExcel) {
+      return await importAPI.uploadExcel(
+        file, 
+        tableName,
+        importAllSheets ? undefined : selectedSheet,
+        importAllSheets,
         true, // create_table
         showTypeDetection // detect_types
       );
-      
-      // Format result message
-      let message = `Batch import completed:\n`;
-      message += `- Total files: ${response.data.total_files}\n`;
-      message += `- Successful: ${response.data.successful}\n`;
-      message += `- Failed: ${response.data.failed}\n\n`;
-      
-      if (response.data.results && response.data.results.length > 0) {
-        message += `Successfully imported tables:\n`;
-        response.data.results.forEach((result: any) => {
-          message += `- ${result.table_name}: ${result.row_count} rows\n`;
-        });
-      }
-      
-      if (response.data.errors && response.data.errors.length > 0) {
-        message += `\nErrors:\n`;
-        response.data.errors.forEach((error: any) => {
-          message += `- ${error.filename}: ${error.error}\n`;
-        });
-      }
-      
-      setResult({
-        columns: ['Status'],
-        rows: [[message]],
-        row_count: response.data.successful,
-        execution_time: 0,
-        executedQuery: `BATCH IMPORT ${uploadFiles.length} CSV files`
-      });
-      
-      setUploadFiles([]);
-      setImportProgress({ current: 0, total: 0, status: '' });
-      await fetchTables();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Batch import failed');
-      setImportProgress({ current: 0, total: 0, status: '' });
-    } finally {
-      setLoading(false);
+    } else {
+      return await importAPI.uploadCSV(
+        file, 
+        tableName,
+        true, // create_table
+        showTypeDetection // detect_types
+      );
     }
   };
+
 
   return (
     <Box>
@@ -1417,64 +1424,48 @@ const SQLEditorPage: React.FC = () => {
                 >
                   <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                   <Typography variant="h6" gutterBottom>
-                    Drag and drop your CSV or Excel file here
+                    Drag and drop CSV or Excel files here
                   </Typography>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    or click to browse
+                    You can add single or multiple files - click to browse or drag and drop
                   </Typography>
                   <input
                     id="file-input"
                     type="file"
                     accept=".csv,.xlsx,.xls"
                     onChange={handleFileInput}
+                    multiple
                     style={{ display: 'none' }}
                   />
-                  {uploadFile && (
-                    <Chip
-                      label={uploadFile.name}
-                      onDelete={() => setUploadFile(null)}
-                      color="primary"
-                      sx={{ mt: 2 }}
-                    />
+                  {uploadFiles.length > 0 && (
+                    <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {uploadFiles.map((file, index) => (
+                        <Chip
+                          key={index}
+                          label={file.name}
+                          onDelete={() => removeFileFromQueue(index)}
+                          color="primary"
+                          size="small"
+                        />
+                      ))}
+                    </Box>
                   )}
                 </Box>
               </Grid>
               
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={batchMode}
-                      onChange={(e) => {
-                        setBatchMode(e.target.checked);
-                        setUploadFile(null);
-                        setUploadFiles([]);
-                        setImportTableName('');
-                        setError('');
-                      }}
-                    />
-                  }
-                  label="Import multiple CSV files"
-                />
-                {batchMode && (
-                  <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4 }}>
-                    Each CSV file will be imported into a separate table named after the file
-                  </Typography>
-                )}
-              </Grid>
-              
-              {/* Show file list for batch mode */}
-              {batchMode && uploadFiles.length > 0 && (
+              {/* Show file queue when files are selected */}
+              {uploadFiles.length > 0 && (
                 <Grid item xs={12}>
                   <Typography variant="subtitle2" gutterBottom>
-                    Files to import:
+                    Files to import ({uploadFiles.length}):
                   </Typography>
-                  <Paper variant="outlined" sx={{ p: 2, maxHeight: 200, overflow: 'auto' }}>
+                  <Paper variant="outlined" sx={{ p: 2, maxHeight: 250, overflow: 'auto' }}>
                     {uploadFiles.map((file, index) => {
                       const suggestedTableName = file.name
-                        .replace(/\.csv$/, '')
+                        .replace(/\.(csv|xlsx|xls)$/, '')
                         .toLowerCase()
                         .replace(/[^a-z0-9]/g, '_');
+                      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
                       return (
                         <Box 
                           key={index} 
@@ -1483,20 +1474,32 @@ const SQLEditorPage: React.FC = () => {
                             justifyContent: 'space-between', 
                             alignItems: 'center',
                             mb: 1,
+                            p: 1,
+                            bgcolor: 'background.default',
+                            borderRadius: 1,
                             '&:last-child': { mb: 0 }
                           }}
                         >
-                          <Box>
-                            <Typography variant="body2">{file.name}</Typography>
+                          <Box sx={{ flex: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                {file.name}
+                              </Typography>
+                              <Chip 
+                                label={isExcel ? 'Excel' : 'CSV'} 
+                                size="small" 
+                                color={isExcel ? 'secondary' : 'primary'}
+                                sx={{ height: 18 }}
+                              />
+                            </Box>
                             <Typography variant="caption" color="text.secondary">
-                              → Table: {suggestedTableName}
+                              → Table: {suggestedTableName} • {(file.size / 1024).toFixed(1)} KB
                             </Typography>
                           </Box>
                           <IconButton
                             size="small"
-                            onClick={() => {
-                              setUploadFiles(uploadFiles.filter((_, i) => i !== index));
-                            }}
+                            onClick={() => removeFileFromQueue(index)}
+                            sx={{ ml: 1 }}
                           >
                             <ClearIcon fontSize="small" />
                           </IconButton>
@@ -1507,7 +1510,8 @@ const SQLEditorPage: React.FC = () => {
                 </Grid>
               )}
               
-              {uploadFile && !batchMode && (
+              {/* Show options for single Excel file */}
+              {uploadFiles.length === 1 && (uploadFiles[0].name.endsWith('.xlsx') || uploadFiles[0].name.endsWith('.xls')) && (
                 <>
                   <Grid item xs={12}>
                     <TextField
@@ -1552,82 +1556,11 @@ const SQLEditorPage: React.FC = () => {
                     </Grid>
                   )}
                   
-                  {/* Import options */}
-                  <Grid item xs={12}>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={showTypeDetection}
-                          onChange={(e) => setShowTypeDetection(e.target.checked)}
-                        />
-                      }
-                      label="Automatically detect column data types"
-                    />
-                  </Grid>
-                  
-                  {/* Advanced configuration for CSV */}
-                  {uploadFile?.name.endsWith('.csv') && (
-                    <Grid item xs={12}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={useAdvancedConfig}
-                            onChange={(e) => setUseAdvancedConfig(e.target.checked)}
-                          />
-                        }
-                        label="Preview and edit CREATE TABLE statement"
-                      />
-                    </Grid>
-                  )}
-                  
-                  <Grid item xs={12}>
-                    <Alert severity="info">
-                      <AlertTitle>Import Information</AlertTitle>
-                      <ul style={{ margin: 0, paddingLeft: 20 }}>
-                        <li>File: {uploadFile.name}</li>
-                        <li>Size: {(uploadFile.size / 1024).toFixed(2)} KB</li>
-                        <li>Type: {uploadFile.name.endsWith('.csv') ? 'CSV' : 'Excel'}</li>
-                        {excelSheets.length > 1 && !importAllSheets && (
-                          <li>Sheet: {selectedSheet}</li>
-                        )}
-                        {excelSheets.length > 1 && importAllSheets && (
-                          <li>Sheets: {excelSheets.length} sheets will be imported</li>
-                        )}
-                        <li>First row will be used as column headers</li>
-                        {showTypeDetection && <li>Data types will be automatically detected</li>}
-                      </ul>
-                    </Alert>
-                  </Grid>
-                  
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <Button
-                        variant="contained"
-                        startIcon={<CloudUploadIcon />}
-                        onClick={handleImport}
-                        disabled={!importTableName.trim() || loading}
-                      >
-                        {loading ? 'Importing...' : 'Import Data'}
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
-                          setUploadFile(null);
-                          setImportTableName('');
-                          setExcelSheets([]);
-                          setSelectedSheet('');
-                          setImportAllSheets(false);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    </Box>
-                  </Grid>
                 </>
               )}
               
-              {/* Batch import section */}
-              {batchMode && uploadFiles.length > 0 && (
+              {/* Smart import options - shown when files are selected */}
+              {uploadFiles.length > 0 && (
                 <>
                   <Grid item xs={12}>
                     <FormControlLabel
@@ -1641,15 +1574,58 @@ const SQLEditorPage: React.FC = () => {
                     />
                   </Grid>
                   
+                  {/* Advanced configuration for single CSV file */}
+                  {uploadFiles.length === 1 && uploadFiles[0].name.endsWith('.csv') && (
+                    <Grid item xs={12}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={useAdvancedConfig}
+                            onChange={(e) => setUseAdvancedConfig(e.target.checked)}
+                          />
+                        }
+                        label="Preview and edit CREATE TABLE statement"
+                      />
+                    </Grid>
+                  )}
+                  
+                  {/* Custom table name for single file */}
+                  {uploadFiles.length === 1 && (
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Custom Table Name (Optional)"
+                        value={importTableName}
+                        onChange={(e) => setImportTableName(e.target.value)}
+                        placeholder={`Default: ${uploadFiles[0].name.replace(/\.(csv|xlsx|xls)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}`}
+                        helperText="Leave empty to use filename as table name"
+                      />
+                    </Grid>
+                  )}
+                  
                   <Grid item xs={12}>
                     <Alert severity="info">
-                      <AlertTitle>Batch Import Information</AlertTitle>
+                      <AlertTitle>Import Summary</AlertTitle>
                       <ul style={{ margin: 0, paddingLeft: 20 }}>
                         <li>Files to import: {uploadFiles.length}</li>
                         <li>Total size: {(uploadFiles.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(2)} KB</li>
-                        <li>Each file will be imported into a separate table</li>
-                        <li>Table names will be derived from file names</li>
-                        <li>First row of each file will be used as column headers</li>
+                        {uploadFiles.length === 1 ? (
+                          <>
+                            <li>Type: {uploadFiles[0].name.endsWith('.csv') ? 'CSV' : 'Excel'}</li>
+                            {excelSheets.length > 1 && !importAllSheets && (
+                              <li>Sheet: {selectedSheet}</li>
+                            )}
+                            {excelSheets.length > 1 && importAllSheets && (
+                              <li>Sheets: {excelSheets.length} sheets will be imported</li>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <li>Multiple files will be imported into separate tables</li>
+                            <li>Table names derived from filenames</li>
+                          </>
+                        )}
+                        <li>First row will be used as column headers</li>
                         {showTypeDetection && <li>Data types will be automatically detected</li>}
                       </ul>
                     </Alert>
@@ -1674,19 +1650,16 @@ const SQLEditorPage: React.FC = () => {
                       <Button
                         variant="contained"
                         startIcon={<CloudUploadIcon />}
-                        onClick={handleBatchImport}
+                        onClick={handleImport}
                         disabled={loading}
                       >
-                        {loading ? 'Importing...' : `Import ${uploadFiles.length} Files`}
+                        {loading ? 'Importing...' : uploadFiles.length === 1 ? 'Import File' : `Import ${uploadFiles.length} Files`}
                       </Button>
                       <Button
                         variant="outlined"
-                        onClick={() => {
-                          setUploadFiles([]);
-                          setImportProgress({ current: 0, total: 0, status: '' });
-                        }}
+                        onClick={clearFileQueue}
                       >
-                        Cancel
+                        Clear All
                       </Button>
                     </Box>
                   </Grid>
