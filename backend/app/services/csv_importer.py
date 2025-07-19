@@ -150,6 +150,17 @@ def create_table_from_dataframe(
     Create a table with the detected column types
     Returns column mapping
     """
+    from sqlalchemy import inspect
+    
+    # Check if table already exists
+    inspector = inspect(db.get_bind())
+    table_exists = inspector.has_table(table_name)
+    
+    if table_exists:
+        # Clear existing data to avoid primary key conflicts
+        db.execute(text(f'DELETE FROM "{table_name}"'))
+        db.commit()
+    
     create_sql, _, column_mapping = generate_create_table_sql(df, table_name, column_types)
     
     # Execute the CREATE TABLE statement
