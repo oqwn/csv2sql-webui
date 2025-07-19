@@ -14,13 +14,22 @@ import {
   CircularProgress,
   Chip,
   LinearProgress,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
 } from '@mui/material';
 import {
   ExpandMore as ExpandMoreIcon,
   TableChart as TableChartIcon,
 } from '@mui/icons-material';
 import { importAPI } from '../../services/api';
-import CSVSQLPreviewDialog from './CSVSQLPreviewDialog';
+import { SQLEditor } from '../sql/SQLEditor';
 
 interface FilePreview {
   file: File;
@@ -29,6 +38,27 @@ interface FilePreview {
   error?: string;
   loading: boolean;
   customSQL?: string;
+  originalSQL?: string;
+  tabValue?: number;
+}
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      {...other}
+    >
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
 }
 
 interface Props {
@@ -45,7 +75,6 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
   onImport,
 }) => {
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
-  const [selectedFileIndex, setSelectedFileIndex] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
 
@@ -77,7 +106,14 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
         const response = await importAPI.previewCSV(files[i]);
         setFilePreviews(prev => prev.map((fp, index) => 
           index === i 
-            ? { ...fp, preview: response.data, loading: false }
+            ? { 
+                ...fp, 
+                preview: response.data, 
+                originalSQL: response.data.create_table_sql,
+                customSQL: response.data.create_table_sql,
+                tabValue: 0,
+                loading: false 
+              }
             : fp
         ));
       } catch (error: any) {
@@ -92,18 +128,28 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
     }
   };
 
-  const handleEditTableStructure = (index: number) => {
-    setSelectedFileIndex(index);
+  const handleTabChange = (fileIndex: number, newValue: number) => {
+    setFilePreviews(prev => prev.map((fp, index) => 
+      index === fileIndex 
+        ? { ...fp, tabValue: newValue }
+        : fp
+    ));
   };
 
-  const handleSQLUpdated = (sql: string) => {
-    if (selectedFileIndex !== null) {
-      setFilePreviews(prev => prev.map((fp, index) => 
-        index === selectedFileIndex 
-          ? { ...fp, customSQL: sql }
-          : fp
-      ));
-    }
+  const handleSQLChange = (fileIndex: number, newSQL: string) => {
+    setFilePreviews(prev => prev.map((fp, index) => 
+      index === fileIndex 
+        ? { ...fp, customSQL: newSQL }
+        : fp
+    ));
+  };
+
+  const handleResetSQL = (fileIndex: number) => {
+    setFilePreviews(prev => prev.map((fp, index) => 
+      index === fileIndex 
+        ? { ...fp, customSQL: fp.originalSQL }
+        : fp
+    ));
   };
 
   const handleBatchImport = async () => {
@@ -133,16 +179,15 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
   const validPreviews = filePreviews.filter(fp => fp.preview && !fp.error);
 
   return (
-    <>
-      <Dialog
-        open={open && selectedFileIndex === null}
-        onClose={onClose}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: { height: '90vh' }
-        }}
-      >
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: { height: '90vh' }
+      }}
+    >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <TableChartIcon />
@@ -170,7 +215,7 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {filePreviews.map((filePreview, index) => (
-              <Accordion key={index} defaultExpanded={files.length <= 3}>
+              <Accordion key={index} defaultExpanded={files.length <= 2}>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
@@ -188,7 +233,7 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
                     {filePreview.error && (
                       <Chip label="Error" size="small" color="error" />
                     )}
-                    {filePreview.customSQL && (
+                    {filePreview.customSQL !== filePreview.originalSQL && (
                       <Chip label="Customized" size="small" color="success" />
                     )}
                   </Box>
@@ -211,55 +256,123 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
                   )}
 
                   {filePreview.preview && (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Proposed CREATE TABLE statement:
-                      </Typography>
-                      <Box 
-                        sx={{ 
-                          bgcolor: 'grey.50', 
-                          p: 2, 
-                          borderRadius: 1, 
-                          fontFamily: 'monospace',
-                          fontSize: '0.875rem',
-                          border: '1px solid',
-                          borderColor: 'grey.300',
-                          mb: 2,
-                          maxHeight: 200,
-                          overflow: 'auto'
-                        }}
-                      >
-                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-                          {filePreview.customSQL || filePreview.preview.create_table_sql}
-                        </pre>
-                      </Box>
+                    <>
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          File: {filePreview.file.name} | Total rows: {filePreview.preview.total_rows} | Columns: {filePreview.preview.columns.length}
+                        </Typography>
+                      </Alert>
 
-                      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                        <Chip 
-                          label={`${filePreview.preview.total_rows} rows`} 
-                          size="small" 
-                          variant="outlined" 
-                        />
-                        <Chip 
-                          label={`${filePreview.preview.columns.length} columns`} 
-                          size="small" 
-                          variant="outlined" 
-                        />
-                        <Chip 
-                          label={`${(filePreview.file.size / 1024).toFixed(1)} KB`} 
-                          size="small" 
-                          variant="outlined" 
-                        />
-                      </Box>
-
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => handleEditTableStructure(index)}
+                      <Tabs 
+                        value={filePreview.tabValue || 0} 
+                        onChange={(_, v) => handleTabChange(index, v)}
+                        sx={{ mb: 1 }}
                       >
-                        Edit Table Structure
-                      </Button>
-                    </Box>
+                        <Tab label="CREATE TABLE SQL" />
+                        <Tab label="Data Preview" />
+                        <Tab label="Column Details" />
+                      </Tabs>
+
+                      <TabPanel value={filePreview.tabValue || 0} index={0}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Edit the CREATE TABLE statement below to customize column types and constraints:
+                        </Typography>
+                        <Box sx={{ height: 300, overflow: 'auto' }}>
+                          <SQLEditor
+                            value={filePreview.customSQL || ''}
+                            onChange={(sql) => handleSQLChange(index, sql)}
+                            rows={12}
+                          />
+                        </Box>
+                        <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                          <Button
+                            size="small"
+                            onClick={() => handleResetSQL(index)}
+                            disabled={filePreview.customSQL === filePreview.originalSQL}
+                          >
+                            Reset to Original
+                          </Button>
+                        </Box>
+                      </TabPanel>
+
+                      <TabPanel value={filePreview.tabValue || 0} index={1}>
+                        <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+                          <Table stickyHeader size="small">
+                            <TableHead>
+                              <TableRow>
+                                {filePreview.preview.columns.map((col: any) => (
+                                  <TableCell key={col.name}>
+                                    {col.name}
+                                    <Typography variant="caption" display="block" color="text.secondary">
+                                      {col.suggested_type}
+                                    </Typography>
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {filePreview.preview.sample_data.map((row: any, idx: number) => (
+                                <TableRow key={idx}>
+                                  {filePreview.preview.columns.map((col: any) => (
+                                    <TableCell key={col.name}>
+                                      {row[col.name] === null ? (
+                                        <Chip label="NULL" size="small" variant="outlined" />
+                                      ) : (
+                                        String(row[col.name])
+                                      )}
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </TabPanel>
+
+                      <TabPanel value={filePreview.tabValue || 0} index={2}>
+                        <TableContainer component={Paper} sx={{ maxHeight: 300 }}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Column Name</TableCell>
+                                <TableCell>Suggested Type</TableCell>
+                                <TableCell align="center">Nullable</TableCell>
+                                <TableCell align="center">Unique Values</TableCell>
+                                <TableCell align="center">Null Count</TableCell>
+                                <TableCell>Sample Values</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {filePreview.preview.columns.map((col: any) => (
+                                <TableRow key={col.name}>
+                                  <TableCell>{col.name}</TableCell>
+                                  <TableCell>
+                                    <Chip label={col.suggested_type} size="small" />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    {col.nullable ? '✓' : '✗'}
+                                  </TableCell>
+                                  <TableCell align="center">{col.unique_values}</TableCell>
+                                  <TableCell align="center">{col.null_count}</TableCell>
+                                  <TableCell>
+                                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                                      {col.sample_values.slice(0, 3).map((val: any, i: number) => (
+                                        <Chip
+                                          key={i}
+                                          label={String(val)}
+                                          size="small"
+                                          variant="outlined"
+                                        />
+                                      ))}
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </TabPanel>
+                    </>
                   )}
                 </AccordionDetails>
               </Accordion>
@@ -279,24 +392,7 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
             {importing ? 'Importing...' : `Import ${validPreviews.length} Tables`}
           </Button>
         </DialogActions>
-      </Dialog>
-
-      {/* Individual file edit dialog */}
-      {selectedFileIndex !== null && filePreviews[selectedFileIndex] && (
-        <CSVSQLPreviewDialog
-          open={true}
-          onClose={() => setSelectedFileIndex(null)}
-          file={filePreviews[selectedFileIndex].file}
-          tableName={filePreviews[selectedFileIndex].tableName}
-          onImport={(sql?: string) => {
-            if (sql) {
-              handleSQLUpdated(sql);
-            }
-            setSelectedFileIndex(null);
-          }}
-        />
-      )}
-    </>
+    </Dialog>
   );
 };
 
