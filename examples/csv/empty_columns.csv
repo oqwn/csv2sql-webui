@@ -1,0 +1,6 @@
+name,email,phone,address,notes
+John Doe,john@example.com,,,
+Jane Smith,,555-1234,123 Main St,Has address
+Bob Wilson,bob@example.com,,456 Oak Ave,Complete except phone
+,,,789 Pine Rd,Only address
+Alice Brown,alice@example.com,555-5678,321 Elm St,All fields filled

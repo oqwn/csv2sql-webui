@@ -1,0 +1,7 @@
+id,name,category,notes
+1,Item One,Category A,First item
+2,Item Two,Category B,Second item
+,Item Three,Category A,Missing ID
+4,Item Four,Category C,Fourth item
+invalid,Item Five,Category B,Text ID that should be handled
+6,Item Six,Category A,Sixth item

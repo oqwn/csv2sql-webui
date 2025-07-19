@@ -1,0 +1,6 @@
+customer_name,order_date,total_amount,status,shipping_address
+John Doe,2024-01-15,150.50,completed,"123 Main St, New York, NY 10001"
+Jane Smith,2024-01-16,89.99,processing,"456 Oak Ave, Los Angeles, CA 90001"
+Bob Wilson,2024-01-17,320.00,shipped,"789 Pine Rd, Chicago, IL 60601"
+Alice Brown,2024-01-18,45.75,completed,"321 Elm St, Houston, TX 77001"
+Charlie Davis,2024-01-19,199.99,cancelled,"654 Maple Dr, Phoenix, AZ 85001"

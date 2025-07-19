@@ -1,0 +1,6 @@
+Employee ID,First Name,Last Name,Email Address,Department/Division,Hire Date,Salary (USD),Is-Active
+101,María,García,maria.garcia@company.com,Sales & Marketing,2023-03-15,65000.50,Yes
+102,Jean-Pierre,Dubois,jp.dubois@company.com,R&D Department,2023-04-20,78500.00,Yes
+103,李,Wei (李伟),li.wei@company.com,IT/Technology,2023-05-10,82000.00,Yes
+104,O'Brien,Patrick,patrick.obrien@company.com,Human Resources,2023-06-01,57000.75,No
+105,José Luis,Martínez-López,jose.martinez@company.com,Finance & Accounting,2023-07-15,71250.25,Yes

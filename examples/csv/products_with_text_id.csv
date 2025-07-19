@@ -1,0 +1,6 @@
+id,product_name,category,price,stock_quantity,description
+PROD-001,Laptop Pro 15,Electronics,1299.99,25,High-performance laptop with 16GB RAM
+PROD-002,Wireless Mouse,Accessories,29.99,150,Ergonomic wireless mouse with USB receiver
+PROD-003,USB-C Hub,Accessories,49.99,75,7-in-1 USB-C hub with HDMI and SD card reader
+SKU-12345,Office Chair,Furniture,299.99,10,Ergonomic office chair with lumbar support
+ITEM-XYZ,Standing Desk,Furniture,599.99,5,Electric height-adjustable standing desk

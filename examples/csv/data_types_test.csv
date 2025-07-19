@@ -1,0 +1,7 @@
+id,integer_col,bigint_col,float_col,bool_col,date_col,datetime_col,text_col,json_col,null_col
+1,42,9223372036854775807,3.14159,true,2024-01-15,2024-01-15 10:30:45,Simple text,"{""key"": ""value""}",
+2,-100,1234567890123,2.71828,false,2024-02-20,2024-02-20 14:15:30,"Text with ""quotes""","[1, 2, 3]",
+3,0,0,0.0,TRUE,2024-03-25,2024-03-25 09:45:00,"Multi-line
+text","{""nested"": {""value"": 123}}",
+4,32767,-9223372036854775808,1.23e-4,FALSE,2024-04-30,2024-04-30 16:00:00,Special chars: @#$%,"{""array"": [true, false]}",
+5,,,,,,,,,
