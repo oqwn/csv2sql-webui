@@ -30,7 +30,12 @@ def detect_column_type(series: pd.Series) -> Tuple[str, str]:
             # Integer type
             max_val = numeric_series.max()
             min_val = numeric_series.min()
-            if min_val >= -32768 and max_val <= 32767:
+            
+            # Check if values exceed BIGINT range
+            if max_val > 9223372036854775807 or min_val < -9223372036854775808:
+                # Use NUMERIC for values that exceed BIGINT
+                return "NUMERIC", "object"
+            elif min_val >= -32768 and max_val <= 32767:
                 return "SMALLINT", "int16"
             elif min_val >= -2147483648 and max_val <= 2147483647:
                 return "INTEGER", "int32"
@@ -39,7 +44,7 @@ def detect_column_type(series: pd.Series) -> Tuple[str, str]:
         else:
             # Float type
             return "DOUBLE PRECISION", "float64"
-    except (ValueError, TypeError):
+    except (ValueError, TypeError, OverflowError):
         pass
     
     # Try to parse as datetime
@@ -187,6 +192,9 @@ async def import_csv_to_table(
                 df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
             elif pandas_dtype == "float64":
                 df[col] = pd.to_numeric(df[col], errors='coerce')
+            elif pandas_dtype == "object" and sql_type == "NUMERIC":
+                # Keep as string for NUMERIC type to preserve precision
+                df[col] = df[col].astype(str)
             elif pandas_dtype == "bool":
                 # Convert various boolean representations
                 df[col] = df[col].map({

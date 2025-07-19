@@ -64,12 +64,20 @@ This directory contains various CSV files to test the CSV import functionality o
   - Type inference with sparse data
 
 ### 8. `large_numbers.csv`
-- **Purpose**: Test large numeric values
+- **Purpose**: Test large numeric values within BIGINT range
 - **Expected behavior**: BIGINT for large IDs, proper numeric type for amounts
 - **Features tested**:
-  - BIGINT necessity validation
+  - BIGINT validation (max: 9,223,372,036,854,775,807)
   - Large transaction IDs
   - Decimal precision
+
+### 9. `ultra_large_numbers.csv`
+- **Purpose**: Test numeric values that exceed BIGINT range
+- **Expected behavior**: NUMERIC type for values exceeding BIGINT limits
+- **Features tested**:
+  - Ultra-large number handling (> 9.22e18)
+  - NUMERIC type detection
+  - Precision preservation for huge numbers
 
 ## Usage
 
