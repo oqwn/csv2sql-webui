@@ -122,7 +122,9 @@ const TableManagerPage: React.FC = () => {
   const fetchTableInfo = async () => {
     if (!selectedTable) return;
     try {
+      console.log('Fetching table info for:', selectedTable);
       const response = await tableAPI.getTableInfo(selectedTable);
+      console.log('Table info response:', response.data);
       setTableInfo(response.data);
     } catch (err) {
       console.error('Failed to fetch table info:', err);
@@ -174,12 +176,22 @@ const TableManagerPage: React.FC = () => {
   };
 
   const handleEdit = (record: any) => {
+    console.log('Editing record:', record);
+    console.log('Table info:', tableInfo);
+    
     const editData = { ...record };
     // Remove primary key if it's auto-generated
     const primaryKey = tableInfo?.primary_key;
-    if (primaryKey && tableInfo?.columns.find(col => col.name === primaryKey && col.type.toLowerCase().includes('serial'))) {
+    const primaryKeyColumn = tableInfo?.columns.find(col => col.name === primaryKey);
+    
+    console.log('Primary key info:', { primaryKey, primaryKeyColumn });
+    
+    if (primaryKey && primaryKeyColumn && primaryKeyColumn.type.toLowerCase().includes('serial')) {
+      console.log('Removing auto-generated primary key from form data');
       delete editData[primaryKey];
     }
+    
+    console.log('Form data for edit:', editData);
     
     setFormData(editData);
     setEditingRecord(record);
@@ -191,18 +203,29 @@ const TableManagerPage: React.FC = () => {
     setLoading(true);
     try {
       if (dialogMode === 'add') {
+        console.log('Creating record:', { selectedTable, formData });
         await tableAPI.createRecord(selectedTable, formData);
         setSuccess('Record added successfully');
       } else {
         const primaryKey = tableInfo?.primary_key;
         if (!primaryKey || !editingRecord) {
+          console.error('Missing primary key or editing record:', { primaryKey, editingRecord });
           throw new Error('Primary key not found');
         }
+        
+        const primaryKeyValue = editingRecord[primaryKey];
+        console.log('Updating record:', { 
+          selectedTable, 
+          primaryKey, 
+          primaryKeyValue, 
+          formData,
+          editingRecord 
+        });
         
         await tableAPI.updateRecord(
           selectedTable,
           primaryKey,
-          editingRecord[primaryKey],
+          primaryKeyValue,
           formData
         );
         setSuccess('Record updated successfully');
@@ -211,7 +234,8 @@ const TableManagerPage: React.FC = () => {
       setDialogOpen(false);
       await fetchTableData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to save record');
+      console.error('Save dialog error:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to save record');
     } finally {
       setLoading(false);
     }

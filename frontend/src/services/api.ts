@@ -86,8 +86,11 @@ export const tableAPI = {
   createRecord: (table_name: string, data: Record<string, any>) => 
     api.post('/tables/record', { table_name, data }),
   
-  updateRecord: (table_name: string, primary_key_column: string, primary_key_value: any, data: Record<string, any>) =>
-    api.put('/tables/record', { table_name, primary_key_column, primary_key_value, data }),
+  updateRecord: (table_name: string, primary_key_column: string, primary_key_value: any, data: Record<string, any>) => {
+    const payload = { table_name, primary_key_column, primary_key_value, data };
+    console.log('API updateRecord payload:', payload);
+    return api.put('/tables/record', payload);
+  },
   
   deleteRecord: (table_name: string, primary_key_column: string, primary_key_value: any) =>
     api.post('/tables/record/delete', { table_name, primary_key_column, primary_key_value }),
