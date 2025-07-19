@@ -179,10 +179,9 @@ const SQLEditorPage: React.FC = () => {
   const [excelSheets, setExcelSheets] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
   const [importAllSheets, setImportAllSheets] = useState(false);
-  const [showTypeDetection, setShowTypeDetection] = useState(true);
+  const [useAutoDetect, setUseAutoDetect] = useState(true);
   const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
   const [showSQLPreviewDialog, setShowSQLPreviewDialog] = useState(false);
-  const [useAdvancedConfig, setUseAdvancedConfig] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
 
   const executeQuery = async (sqlQuery?: string) => {
@@ -607,8 +606,8 @@ const SQLEditorPage: React.FC = () => {
       const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
       const isCSV = file.name.endsWith('.csv');
 
-      // For single CSV files with advanced configuration, show the SQL preview dialog
-      if (isCSV && useAdvancedConfig) {
+      // For single CSV files with preview mode enabled, show the SQL preview dialog
+      if (isCSV && !useAutoDetect) {
         setUploadFile(file); // Set for the dialog
         setShowSQLPreviewDialog(true);
         return;
@@ -654,15 +653,21 @@ const SQLEditorPage: React.FC = () => {
         const csvFiles = filesToProcess.filter(f => f.name.endsWith('.csv'));
         const excelFiles = filesToProcess.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
         
+        // If preview mode is enabled and there are CSV files, show batch preview
+        if (!useAutoDetect && csvFiles.length > 0) {
+          setError('Batch preview mode not yet implemented. Please use auto-detect mode for multiple files or import CSV files one by one for preview.');
+          return;
+        }
+        
         if (csvFiles.length > 0) {
           response = await importAPI.uploadCSVBatch(
             csvFiles,
             true, // create_table
-            showTypeDetection // detect_types
+            useAutoDetect // detect_types
           );
         }
         
-        // TODO: Handle Excel batch import if needed
+        // Handle Excel files one by one for now
         if (excelFiles.length > 0) {
           setError('Excel batch import not yet supported. Please import Excel files one by one.');
           return;
@@ -673,7 +678,7 @@ const SQLEditorPage: React.FC = () => {
       let message: string;
       if (filesToProcess.length === 1 && response) {
         message = response.data.message || 'Import successful';
-        if (response.data.column_types && showTypeDetection) {
+        if (response.data.column_types && useAutoDetect) {
           const typeInfo = response.data.column_types
             .map((col: any) => `${col.name} (${col.type})`)
             .join(', ');
@@ -733,14 +738,14 @@ const SQLEditorPage: React.FC = () => {
         importAllSheets ? undefined : selectedSheet,
         importAllSheets,
         true, // create_table
-        showTypeDetection // detect_types
+        useAutoDetect // detect_types
       );
     } else {
       return await importAPI.uploadCSV(
         file, 
         tableName,
         true, // create_table
-        showTypeDetection // detect_types
+        useAutoDetect // detect_types
       );
     }
   };
@@ -1566,28 +1571,18 @@ const SQLEditorPage: React.FC = () => {
                     <FormControlLabel
                       control={
                         <Switch
-                          checked={showTypeDetection}
-                          onChange={(e) => setShowTypeDetection(e.target.checked)}
+                          checked={useAutoDetect}
+                          onChange={(e) => setUseAutoDetect(e.target.checked)}
                         />
                       }
-                      label="Automatically detect column data types"
+                      label={useAutoDetect ? "Auto-detect column types" : "Preview and edit tables before import"}
                     />
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4, mt: 0.5 }}>
+                      {useAutoDetect 
+                        ? "Automatically detect data types and create tables" 
+                        : "Review and customize table structure before importing"}
+                    </Typography>
                   </Grid>
-                  
-                  {/* Advanced configuration for single CSV file */}
-                  {uploadFiles.length === 1 && uploadFiles[0].name.endsWith('.csv') && (
-                    <Grid item xs={12}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={useAdvancedConfig}
-                            onChange={(e) => setUseAdvancedConfig(e.target.checked)}
-                          />
-                        }
-                        label="Preview and edit CREATE TABLE statement"
-                      />
-                    </Grid>
-                  )}
                   
                   {/* Custom table name for single file */}
                   {uploadFiles.length === 1 && (
@@ -1626,7 +1621,7 @@ const SQLEditorPage: React.FC = () => {
                           </>
                         )}
                         <li>First row will be used as column headers</li>
-                        {showTypeDetection && <li>Data types will be automatically detected</li>}
+                        <li>{useAutoDetect ? "Data types will be automatically detected" : "Tables will be previewed before import"}</li>
                       </ul>
                     </Alert>
                   </Grid>
@@ -1653,7 +1648,14 @@ const SQLEditorPage: React.FC = () => {
                         onClick={handleImport}
                         disabled={loading}
                       >
-                        {loading ? 'Importing...' : uploadFiles.length === 1 ? 'Import File' : `Import ${uploadFiles.length} Files`}
+                        {loading 
+                          ? 'Processing...' 
+                          : !useAutoDetect && uploadFiles.length === 1 && uploadFiles[0].name.endsWith('.csv')
+                            ? 'Preview Table Structure'
+                            : uploadFiles.length === 1 
+                              ? 'Import File' 
+                              : `Import ${uploadFiles.length} Files`
+                        }
                       </Button>
                       <Button
                         variant="outlined"
@@ -1797,7 +1799,7 @@ const SQLEditorPage: React.FC = () => {
               setShowColumnConfigDialog(false);
               setUploadFile(null);
               setImportTableName('');
-              setUseAdvancedConfig(false);
+              setUseAutoDetect(true);
               setError('');
               // Show success in result
               setResult({
@@ -1820,7 +1822,7 @@ const SQLEditorPage: React.FC = () => {
               setShowSQLPreviewDialog(false);
               setUploadFile(null);
               setImportTableName('');
-              setUseAdvancedConfig(false);
+              setUseAutoDetect(true);
               setError('');
               // Show success in result
               setResult({
