@@ -150,13 +150,25 @@ const TableManagerPage: React.FC = () => {
     setError('');
     
     try {
-      const response = await tableAPI.getTableData({
+      // Try to get primary key from tableInfo, otherwise let backend determine it
+      const params: any = {
         table_name: selectedTable,
         page: page,
         page_size: rowsPerPage,
         search_column: filterColumn || undefined,
         search_value: searchQuery || undefined,
-      });
+        order_direction: 'ASC',
+      };
+      
+      // If we have tableInfo, use its primary key; otherwise try 'id'
+      if (tableInfo?.primary_key) {
+        params.order_by = tableInfo.primary_key;
+      } else {
+        // Try to order by 'id' - backend will handle if column doesn't exist
+        params.order_by = 'id';
+      }
+      
+      const response = await tableAPI.getTableData(params);
       
       setTableData(response.data.rows);
       setTotalRows(response.data.total_count);
