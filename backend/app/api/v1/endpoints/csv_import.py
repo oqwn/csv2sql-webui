@@ -231,6 +231,7 @@ async def import_csv_with_sql(
     file: UploadFile = File(...),
     create_table_sql: str = Form(...),
     table_name: str = Form(...),
+    column_mapping: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ) -> Any:
     """
@@ -260,17 +261,22 @@ async def import_csv_with_sql(
         column_pattern = r'"([^"]+)"\s+\w+'
         sql_columns = re.findall(column_pattern, create_table_sql)
         
-        # Clean and map CSV columns to SQL columns
-        csv_to_sql_mapping = {}
-        for csv_col in df.columns:
-            sanitized = csv_col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
-            sanitized = ''.join(c for c in sanitized if c.isalnum() or c == '_')
-            
-            # Handle special case where id column was renamed to id_original
-            if sanitized == 'id' and 'id_original' in sql_columns and 'id' not in sql_columns:
-                csv_to_sql_mapping[csv_col] = 'id_original'
-            elif sanitized in sql_columns:
-                csv_to_sql_mapping[csv_col] = sanitized
+        # If column mapping is provided, use it; otherwise fall back to auto-detection
+        if column_mapping:
+            import json
+            csv_to_sql_mapping = json.loads(column_mapping)
+        else:
+            # Clean and map CSV columns to SQL columns
+            csv_to_sql_mapping = {}
+            for csv_col in df.columns:
+                sanitized = csv_col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
+                sanitized = ''.join(c for c in sanitized if c.isalnum() or c == '_')
+                
+                # Handle special case where id column was renamed to id_original
+                if sanitized == 'id' and 'id_original' in sql_columns and 'id' not in sql_columns:
+                    csv_to_sql_mapping[csv_col] = 'id_original'
+                elif sanitized in sql_columns:
+                    csv_to_sql_mapping[csv_col] = sanitized
         
         # Rename dataframe columns to match SQL table
         df = df.rename(columns=csv_to_sql_mapping)
