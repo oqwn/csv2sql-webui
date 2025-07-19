@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost/sqlwebui"
+        "sqlite:///./sql_webui.db"
     )
     
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

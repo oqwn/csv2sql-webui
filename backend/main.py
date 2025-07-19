@@ -8,6 +8,9 @@ from app.api.v1.api import api_router
 from app.db.session import engine
 from app.db.base import Base
 
+# Import models to register them with Base
+import app.models  # noqa: E402
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

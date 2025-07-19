@@ -63,6 +63,41 @@ class RealTimeSyncStopRequest(BaseModel):
     sync_id: str
 
 
+class DataSourceResponse(BaseModel):
+    id: int
+    name: str
+    type: str
+    connection_config: Dict[str, Any]
+    extraction_config: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+    is_active: bool
+    created_at: str
+    updated_at: str
+    last_sync_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ExtractionJobResponse(BaseModel):
+    id: int
+    data_source_id: int
+    job_name: str
+    extraction_mode: str
+    source_query: Optional[str] = None
+    target_table: str
+    status: str
+    records_processed: int
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
+    created_at: str
+    config: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+
+
 @router.get("/supported")
 async def get_supported_data_sources() -> List[Dict[str, Any]]:
     """Get list of supported data source types"""
@@ -131,16 +166,17 @@ async def get_data_sources(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db)
-) -> List[DataSource]:
+) -> List[DataSourceResponse]:
     """Get all data sources"""
-    return db.query(DataSource).offset(skip).limit(limit).all()
+    data_sources = db.query(DataSource).offset(skip).limit(limit).all()
+    return [DataSourceResponse.model_validate(ds) for ds in data_sources]
 
 
 @router.post("/")
 async def create_data_source(
     data_source: DataSourceCreate,
     db: Session = Depends(get_db)
-) -> DataSource:
+) -> DataSourceResponse:
     """Create a new data source"""
     try:
         # Test connection before saving
@@ -168,7 +204,7 @@ async def create_data_source(
         db.commit()
         db.refresh(db_data_source)
         
-        return db_data_source
+        return DataSourceResponse.model_validate(db_data_source)
         
     except HTTPException:
         raise
@@ -180,12 +216,12 @@ async def create_data_source(
 async def get_data_source(
     data_source_id: int,
     db: Session = Depends(get_db)
-) -> DataSource:
+) -> DataSourceResponse:
     """Get a specific data source"""
     data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
     if not data_source:
         raise HTTPException(status_code=404, detail="Data source not found")
-    return data_source
+    return DataSourceResponse.model_validate(data_source)
 
 
 @router.put("/{data_source_id}")
@@ -193,7 +229,7 @@ async def update_data_source(
     data_source_id: int,
     data_source_update: DataSourceUpdate,
     db: Session = Depends(get_db)
-) -> DataSource:
+) -> DataSourceResponse:
     """Update a data source"""
     db_data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
     if not db_data_source:
@@ -219,7 +255,7 @@ async def update_data_source(
     
     db.commit()
     db.refresh(db_data_source)
-    return db_data_source
+    return DataSourceResponse.from_orm(db_data_source)
 
 
 @router.delete("/{data_source_id}")
@@ -283,23 +319,24 @@ async def extract_data(
 async def get_extraction_jobs(
     data_source_id: int,
     db: Session = Depends(get_db)
-) -> List[ExtractionJob]:
+) -> List[ExtractionJobResponse]:
     """Get extraction jobs for a data source"""
-    return db.query(ExtractionJob).filter(
+    jobs = db.query(ExtractionJob).filter(
         ExtractionJob.data_source_id == data_source_id
     ).order_by(ExtractionJob.created_at.desc()).all()
+    return [ExtractionJobResponse.model_validate(job) for job in jobs]
 
 
 @router.get("/jobs/{job_id}")
 async def get_extraction_job(
     job_id: int,
     db: Session = Depends(get_db)
-) -> ExtractionJob:
+) -> ExtractionJobResponse:
     """Get a specific extraction job"""
     job = db.query(ExtractionJob).filter(ExtractionJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Extraction job not found")
-    return job
+    return ExtractionJobResponse.model_validate(job)
 
 
 async def run_extraction_job(
