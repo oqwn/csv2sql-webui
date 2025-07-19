@@ -1685,31 +1685,49 @@ const SQLEditorPage: React.FC = () => {
 
       {result && (
         <Paper sx={{ p: 2 }}>
-          {/* Check if this is a DDL operation (CREATE, ALTER, DROP) or DML with no results */}
-          {(result.row_count === -1 || (result.row_count === 0 && result.columns.length === 0)) ? (
-            <Alert 
-              severity="success" 
-              sx={{ mb: 2 }}
-              action={
-                <Chip 
-                  label={`${result.execution_time.toFixed(3)}s`} 
-                  size="small" 
-                  color="success" 
-                  variant="outlined" 
-                />
-              }
-            >
-              <AlertTitle>Query Executed Successfully</AlertTitle>
-              {result.executedQuery?.trim().toUpperCase().startsWith('CREATE TABLE') && 'Table created successfully!'}
-              {result.executedQuery?.trim().toUpperCase().startsWith('INSERT') && `${result.row_count > 0 ? result.row_count : 1} row(s) inserted successfully!`}
-              {result.executedQuery?.trim().toUpperCase().startsWith('UPDATE') && `${result.row_count} row(s) updated successfully!`}
-              {result.executedQuery?.trim().toUpperCase().startsWith('DELETE') && `${result.row_count} row(s) deleted successfully!`}
-              {result.executedQuery?.trim().toUpperCase().startsWith('DROP') && 'Operation completed successfully!'}
-              {result.executedQuery?.trim().toUpperCase().startsWith('ALTER') && 'Table altered successfully!'}
-              {!['CREATE', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER'].some(op => 
-                result.executedQuery?.trim().toUpperCase().startsWith(op)
-              ) && 'Operation completed successfully!'}
-            </Alert>
+          {/* Check if this is a DDL operation (CREATE, ALTER, DROP), DML with no results, or import operation */}
+          {(result.row_count === -1 || (result.row_count === 0 && result.columns.length === 0) || result.executedQuery?.trim().toUpperCase().startsWith('IMPORT')) ? (
+            <>
+              <Alert 
+                severity="success" 
+                sx={{ mb: 2 }}
+                action={
+                  <Chip 
+                    label={`${result.execution_time.toFixed(3)}s`} 
+                    size="small" 
+                    color="success" 
+                    variant="outlined" 
+                  />
+                }
+              >
+                <AlertTitle>Query Executed Successfully</AlertTitle>
+                {result.executedQuery?.trim().toUpperCase().startsWith('CREATE TABLE') && 'Table created successfully!'}
+                {result.executedQuery?.trim().toUpperCase().startsWith('INSERT') && `${result.row_count > 0 ? result.row_count : 1} row(s) inserted successfully!`}
+                {result.executedQuery?.trim().toUpperCase().startsWith('UPDATE') && `${result.row_count} row(s) updated successfully!`}
+                {result.executedQuery?.trim().toUpperCase().startsWith('DELETE') && `${result.row_count} row(s) deleted successfully!`}
+                {result.executedQuery?.trim().toUpperCase().startsWith('DROP') && 'Operation completed successfully!'}
+                {result.executedQuery?.trim().toUpperCase().startsWith('ALTER') && 'Table altered successfully!'}
+                {result.executedQuery?.trim().toUpperCase().startsWith('IMPORT') && (
+                  result.executedQuery?.trim().toUpperCase().startsWith('BATCH IMPORT') 
+                    ? `Batch import completed! ${result.row_count} files processed successfully.`
+                    : `File imported successfully! ${result.row_count > 0 ? `${result.row_count} rows` : 'Data'} imported.`
+                )}
+                {!['CREATE', 'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'IMPORT'].some(op => 
+                  result.executedQuery?.trim().toUpperCase().startsWith(op)
+                ) && 'Operation completed successfully!'}
+              </Alert>
+              {/* Show detailed import information */}
+              {result.executedQuery?.trim().toUpperCase().startsWith('IMPORT') && result.rows && result.rows.length > 0 && (
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Import Details:
+                  </Typography>
+                  <Typography variant="body2" component="pre" sx={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace' }}>
+                    {result.rows[0][0]}
+                  </Typography>
+                </Box>
+              )}
+            </>
           ) : (
             <>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
