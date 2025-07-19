@@ -1,6 +1,23 @@
-# CSV Import Test Files
+# Sample Files for Testing CSV2SQL WebUI
 
-This directory contains various CSV files to test the CSV import functionality of the SQL Web UI application.
+This directory contains various sample files to test the import functionality of the CSV2SQL Web UI application.
+
+## 📁 Directory Structure
+
+- **`csv/`** - CSV files for testing CSV import functionality
+- **`excel/`** - Excel files (.xlsx) for testing Excel import functionality
+
+## 📊 Excel Files
+
+See `excel/README.md` for detailed information about Excel test files including:
+- **employees.xlsx** - Basic employee data with mixed data types
+- **sales_data.xlsx** - 500 sales records for performance testing  
+- **inventory.xlsx** - Product inventory with supplier information
+- **financial_report.xlsx** - Multi-sheet financial data (3 sheets)
+- **data_types_test.xlsx** - Comprehensive data type testing
+- **special_characters.xlsx** - Unicode and special character handling
+
+## 📄 CSV Files
 
 ## Test Files
 
