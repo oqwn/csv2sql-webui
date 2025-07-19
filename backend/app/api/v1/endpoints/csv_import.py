@@ -140,14 +140,14 @@ async def preview_csv(
                         # Check if values are numeric and sequential
                         id_values = pd.to_numeric(id_series, errors='coerce')
                         if not id_values.isna().any():
-                            # If it's already a proper sequence, use it as primary key
-                            col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+                            # If it's already a proper sequence, use it as primary key with BIGINT
+                            col_def = f'"{col_name}" BIGINT PRIMARY KEY'
                         else:
                             # If not numeric, we'll need to generate our own id
                             has_id_column = False
                             col_def = f'"{col_name}_original" {col_type}'
                     else:
-                        col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+                        col_def = f'"{col_name}" BIGINT PRIMARY KEY'
                 except:
                     # If any error, treat as regular column
                     has_id_column = False
@@ -168,7 +168,7 @@ async def preview_csv(
         
         # Add auto-generated ID column if no suitable id exists
         if not has_id_column:
-            column_definitions.insert(0, '"id" SERIAL PRIMARY KEY')
+            column_definitions.insert(0, '"id" BIGSERIAL PRIMARY KEY')
         
         create_table_sql = f"""CREATE TABLE IF NOT EXISTS "{suggested_table_name}" (
     {',\n    '.join(column_definitions)}

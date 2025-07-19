@@ -60,7 +60,9 @@ interface Props {
 const SQL_TYPES = [
   'INTEGER',
   'BIGINT',
+  'BIGSERIAL',
   'SMALLINT',
+  'SERIAL',
   'DOUBLE PRECISION',
   'NUMERIC',
   'VARCHAR(255)',
@@ -106,7 +108,7 @@ const CSVColumnConfigDialog: React.FC<Props> = ({
         original_name: col.original_name,
         type: col.suggested_type,
         nullable: col.nullable,
-        primary_key: index === 0 && col.name.toLowerCase() === 'id',
+        primary_key: col.name.toLowerCase() === 'id',
         unique: col.unique_values === data.total_rows,
         default_value: undefined,
       }));

@@ -103,14 +103,14 @@ def create_table_from_dataframe(
                 if len(id_series) > 0:
                     id_values = pd.to_numeric(id_series, errors='coerce')
                     if not id_values.isna().any():
-                        # Valid numeric id column, use as primary key
-                        columns.append(f'"{safe_col}" {sql_type} PRIMARY KEY')
+                        # Valid numeric id column, use as primary key with BIGINT
+                        columns.append(f'"{safe_col}" BIGINT PRIMARY KEY')
                         has_id_column = True
                     else:
                         # Invalid id column, rename it
                         columns.append(f'"{safe_col}_original" {sql_type}')
                 else:
-                    columns.append(f'"{safe_col}" {sql_type} PRIMARY KEY')
+                    columns.append(f'"{safe_col}" BIGINT PRIMARY KEY')
                     has_id_column = True
             except:
                 # If any error, rename the column
@@ -120,7 +120,7 @@ def create_table_from_dataframe(
     
     # Add auto-generated ID if no valid id column exists
     if not has_id_column:
-        columns.insert(0, '"id" SERIAL PRIMARY KEY')
+        columns.insert(0, '"id" BIGSERIAL PRIMARY KEY')
     
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS "{table_name}" (
