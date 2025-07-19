@@ -173,6 +173,10 @@ const SQLEditorPage: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [importTableName, setImportTableName] = useState('');
+  const [excelSheets, setExcelSheets] = useState<string[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>('');
+  const [importAllSheets, setImportAllSheets] = useState(false);
+  const [showTypeDetection, setShowTypeDetection] = useState(true);
 
   const executeQuery = async (sqlQuery?: string) => {
     const queryToExecute = sqlQuery || query;
@@ -531,14 +535,42 @@ const SQLEditorPage: React.FC = () => {
     }
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     const validTypes = ['text/csv', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
-    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv')) {
+    const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+    
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.csv') && !isExcel) {
       setError('Please upload a CSV or Excel file');
       return;
     }
+    
     setUploadFile(file);
     setError('');
+    setExcelSheets([]);
+    setSelectedSheet('');
+    setImportAllSheets(false);
+    
+    // If Excel file, get sheet names
+    if (isExcel) {
+      try {
+        const response = await importAPI.getExcelSheets(file);
+        setExcelSheets(response.data.sheets || []);
+        if (response.data.sheets && response.data.sheets.length > 0) {
+          setSelectedSheet(response.data.sheets[0]);
+        }
+      } catch (err) {
+        console.error('Failed to get Excel sheets:', err);
+      }
+    }
+    
+    // Auto-generate table name from filename
+    if (!importTableName) {
+      const suggestedName = file.name
+        .replace(/\.(csv|xlsx|xls)$/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '_');
+      setImportTableName(suggestedName);
+    }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -558,17 +590,51 @@ const SQLEditorPage: React.FC = () => {
       return;
     }
 
+    const isExcel = uploadFile.name.endsWith('.xlsx') || uploadFile.name.endsWith('.xls');
+
     setLoading(true);
     try {
-      const response = await importAPI.uploadCSV(uploadFile, importTableName);
+      let response;
+      
+      if (isExcel) {
+        response = await importAPI.uploadExcel(
+          uploadFile, 
+          importTableName,
+          importAllSheets ? undefined : selectedSheet,
+          importAllSheets,
+          true, // create_table
+          showTypeDetection // detect_types
+        );
+      } else {
+        response = await importAPI.uploadCSV(
+          uploadFile, 
+          importTableName,
+          true, // create_table
+          showTypeDetection // detect_types
+        );
+      }
+      
+      // Format result message
+      let message = response.data.message || 'Import successful';
+      if (response.data.column_types && showTypeDetection) {
+        const typeInfo = response.data.column_types
+          .map((col: any) => `${col.name} (${col.type})`)
+          .join(', ');
+        message += `\n\nDetected columns: ${typeInfo}`;
+      }
+      
       setResult({
         columns: ['Status'],
-        rows: [[response.data.message || 'Import successful']],
-        row_count: response.data.rows_imported || 0,
+        rows: [[message]],
+        row_count: response.data.row_count || 0,
         execution_time: 0,
         executedQuery: `IMPORT ${uploadFile.name} INTO ${importTableName}`
       });
+      
       setUploadFile(null);
+      setImportTableName('');
+      setExcelSheets([]);
+      setSelectedSheet('');
       await fetchTables();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Import failed');
@@ -1291,15 +1357,66 @@ const SQLEditorPage: React.FC = () => {
                     />
                   </Grid>
                   
+                  {/* Excel sheet selection */}
+                  {excelSheets.length > 0 && (
+                    <Grid item xs={12}>
+                      <FormControl fullWidth>
+                        <InputLabel>Select Sheet</InputLabel>
+                        <Select
+                          value={selectedSheet}
+                          label="Select Sheet"
+                          onChange={(e) => setSelectedSheet(e.target.value)}
+                          disabled={importAllSheets}
+                        >
+                          {excelSheets.map((sheet) => (
+                            <MenuItem key={sheet} value={sheet}>
+                              {sheet}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={importAllSheets}
+                            onChange={(e) => setImportAllSheets(e.target.checked)}
+                          />
+                        }
+                        label="Import all sheets as separate tables"
+                        sx={{ mt: 1 }}
+                      />
+                    </Grid>
+                  )}
+                  
+                  {/* Import options */}
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={showTypeDetection}
+                          onChange={(e) => setShowTypeDetection(e.target.checked)}
+                        />
+                      }
+                      label="Automatically detect column data types"
+                    />
+                  </Grid>
+                  
                   <Grid item xs={12}>
                     <Alert severity="info">
                       <AlertTitle>Import Information</AlertTitle>
                       <ul style={{ margin: 0, paddingLeft: 20 }}>
                         <li>File: {uploadFile.name}</li>
                         <li>Size: {(uploadFile.size / 1024).toFixed(2)} KB</li>
-                        <li>Type: {uploadFile.type || 'CSV'}</li>
+                        <li>Type: {uploadFile.name.endsWith('.csv') ? 'CSV' : 'Excel'}</li>
+                        {excelSheets.length > 1 && !importAllSheets && (
+                          <li>Sheet: {selectedSheet}</li>
+                        )}
+                        {excelSheets.length > 1 && importAllSheets && (
+                          <li>Sheets: {excelSheets.length} sheets will be imported</li>
+                        )}
                         <li>First row will be used as column headers</li>
-                        <li>Data types will be automatically detected</li>
+                        {showTypeDetection && <li>Data types will be automatically detected</li>}
                       </ul>
                     </Alert>
                   </Grid>
@@ -1319,6 +1436,9 @@ const SQLEditorPage: React.FC = () => {
                         onClick={() => {
                           setUploadFile(null);
                           setImportTableName('');
+                          setExcelSheets([]);
+                          setSelectedSheet('');
+                          setImportAllSheets(false);
                         }}
                       >
                         Cancel

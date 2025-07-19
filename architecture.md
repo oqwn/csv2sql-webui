@@ -72,9 +72,9 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 │  ✅ Authentication      │    │  ✅ Material-UI         │
 │  ✅ SQL Execution       │    │  ✅ Protected Routes    │
 │  ✅ CSV Import          │    │  ✅ Auth Context        │
-│  ⬜ Excel Import        │    │  ✅ SQL Editor          │
+│  ✅ Excel Import        │    │  ✅ SQL Editor          │
 │  ⬜ Batch Scheduling    │    │  ✅ Import UI (Drag-n-Drop) │
-│                         │    │  ⬜ BI Dashboard        │
+│  ✅ Type Detection      │    │  ⬜ BI Dashboard        │
 └────────┬────────────────┘    └─────────────────────────┘
          │
          ├──────────────┬──────────────┐
@@ -164,7 +164,8 @@ backend/
 │   │           ├── auth.py      # Authentication endpoints
 │   │           ├── users.py     # User management
 │   │           ├── sql.py       # SQL execution & table list
-│   │           ├── csv_import.py # CSV import
+│   │           ├── csv_import.py # CSV import with type detection
+│   │           ├── excel_import.py # Excel import with multi-sheet support
 │   │           └── export.py    # Data export (CSV/Excel)
 │   ├── core/
 │   │   ├── config.py            # Application settings
@@ -183,7 +184,8 @@ backend/
 │       ├── auth.py              # Authentication logic
 │       ├── user.py              # User service
 │       ├── sql_executor.py      # SQL execution service
-│       └── csv_importer.py      # CSV import service
+│       ├── csv_importer.py      # CSV import with type detection
+│       └── excel_importer.py    # Excel import with sheet handling
 └── main.py                      # FastAPI application entry
 ```
 

@@ -33,13 +33,13 @@
 ## Phase 3: CSV/Excel Import/Export
 - [x] CSV to SQL converter
   - [x] CSV file upload interface (drag-and-drop)
-  - [ ] Column type detection
-  - [ ] Table creation from CSV structure
+  - [x] Column type detection
+  - [x] Table creation from CSV structure
   - [x] Bulk data import
-- [ ] Excel to SQL converter
-  - [ ] Excel file parser (xlsx support)
-  - [ ] Multi-sheet handling
-  - [ ] Data type mapping
+- [x] Excel to SQL converter
+  - [x] Excel file parser (xlsx support)
+  - [x] Multi-sheet handling
+  - [x] Data type mapping
 - [x] SQL to CSV export
   - [x] Query result to CSV converter
   - [x] Download functionality
