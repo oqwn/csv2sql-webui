@@ -99,8 +99,12 @@ const TableManagerPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedTable) {
-      fetchTableInfo();
-      fetchTableData();
+      setTableInfo(null); // Reset table info when table changes
+      const loadTableData = async () => {
+        await fetchTableInfo();
+        await fetchTableData();
+      };
+      loadTableData();
     }
   }, [selectedTable]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -125,10 +129,17 @@ const TableManagerPage: React.FC = () => {
       console.log('Fetching table info for:', selectedTable);
       const response = await tableAPI.getTableInfo(selectedTable);
       console.log('Table info response:', response.data);
-      setTableInfo(response.data);
-    } catch (err) {
+      
+      if (response.data && response.data.table_name) {
+        setTableInfo(response.data);
+        console.log('Table info set successfully:', response.data);
+      } else {
+        console.error('Invalid table info response:', response.data);
+        setError('Invalid table information received');
+      }
+    } catch (err: any) {
       console.error('Failed to fetch table info:', err);
-      setError('Failed to fetch table information');
+      setError(err.response?.data?.detail || 'Failed to fetch table information');
     }
   };
 
@@ -151,7 +162,7 @@ const TableManagerPage: React.FC = () => {
       setTotalRows(response.data.total_count);
       
       // Update table info primary key if not set
-      if (!tableInfo && response.data.primary_key) {
+      if (tableInfo && !tableInfo.primary_key && response.data.primary_key) {
         setTableInfo(prev => prev ? { ...prev, primary_key: response.data.primary_key } : null);
       }
     } catch (err: any) {
