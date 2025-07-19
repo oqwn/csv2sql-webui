@@ -1,6 +1,11 @@
 from typing import Any, Optional
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import text
+import pandas as pd
+import io
+import re
+import json
 
 from app.db.session import get_db
 from app.services.excel_importer import (
@@ -9,6 +14,7 @@ from app.services.excel_importer import (
     preview_excel_data,
     get_excel_sheets
 )
+from app.services.import_service import import_file_with_sql
 
 router = APIRouter()
 
@@ -108,5 +114,35 @@ async def get_sheets(
         }
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/excel/import-with-sql")
+async def import_excel_with_sql(
+    file: UploadFile = File(...),
+    create_table_sql: str = Form(...),
+    table_name: str = Form(...),
+    sheet_name: Optional[str] = Form(None),
+    column_mapping: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Import Excel file with custom CREATE TABLE SQL
+    """
+    if file.filename and not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
+        raise HTTPException(status_code=400, detail="File must be Excel format (.xlsx or .xls)")
+    
+    try:
+        result = await import_file_with_sql(
+            db=db,
+            file=file,
+            create_table_sql=create_table_sql,
+            table_name=table_name,
+            column_mapping_json=column_mapping,
+            sheet_name=sheet_name
+        )
+        return result
+        
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

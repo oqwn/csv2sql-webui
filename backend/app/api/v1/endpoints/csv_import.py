@@ -10,6 +10,7 @@ import re
 
 from app.db.session import get_db
 from app.services.csv_importer import import_csv_to_table, detect_column_type, generate_create_table_sql
+from app.services.import_service import import_file_with_sql
 
 router = APIRouter()
 
@@ -241,71 +242,16 @@ async def import_csv_with_sql(
         raise HTTPException(status_code=400, detail="File must be CSV format")
     
     try:
-        # Validate and execute the CREATE TABLE SQL
-        # Basic validation - must be CREATE TABLE statement
-        sql_upper = create_table_sql.strip().upper()
-        if not sql_upper.startswith('CREATE TABLE'):
-            raise HTTPException(status_code=400, detail="SQL must be a CREATE TABLE statement")
-        
-        # Execute the CREATE TABLE statement
-        db.execute(text(create_table_sql))
-        db.commit()
-        
-        # Read CSV file
-        content = await file.read()
-        df = pd.read_csv(io.BytesIO(content))
-        
-        # Parse the CREATE TABLE SQL to understand column mappings
-        # Extract column names from the SQL
-        import re
-        column_pattern = r'"([^"]+)"\s+\w+'
-        sql_columns = re.findall(column_pattern, create_table_sql)
-        
-        # If column mapping is provided, use it; otherwise fall back to auto-detection
-        if column_mapping:
-            import json
-            csv_to_sql_mapping = json.loads(column_mapping)
-        else:
-            # Clean and map CSV columns to SQL columns
-            csv_to_sql_mapping = {}
-            for csv_col in df.columns:
-                sanitized = csv_col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
-                sanitized = ''.join(c for c in sanitized if c.isalnum() or c == '_')
-                
-                # Handle special case where id column was renamed to id_original
-                if sanitized == 'id' and 'id_original' in sql_columns and 'id' not in sql_columns:
-                    csv_to_sql_mapping[csv_col] = 'id_original'
-                elif sanitized in sql_columns:
-                    csv_to_sql_mapping[csv_col] = sanitized
-        
-        # Rename dataframe columns to match SQL table
-        df = df.rename(columns=csv_to_sql_mapping)
-        
-        # Only keep columns that exist in the SQL table (excluding auto-generated id)
-        columns_to_keep = [col for col in df.columns if col in sql_columns]
-        df = df[columns_to_keep]
-        
-        # Import data to the table
-        df.to_sql(
-            table_name,
-            con=db.get_bind(),
-            if_exists='append',
-            index=False,
-            method='multi'
+        result = await import_file_with_sql(
+            db=db,
+            file=file,
+            create_table_sql=create_table_sql,
+            table_name=table_name,
+            column_mapping_json=column_mapping
         )
+        return result
         
-        return {
-            "message": f"Successfully imported {len(df)} rows to table '{table_name}'",
-            "table_name": table_name,
-            "row_count": len(df),
-            "column_count": len(df.columns)
-        }
-        
-    except HTTPException:
-        db.rollback()
-        raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
 
