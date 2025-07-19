@@ -327,7 +327,10 @@ class DataExtractionManager:
                 "category": "relational",
                 "description": "MySQL relational database",
                 "supports_incremental": True,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["host", "database", "username"],
+                "optional_fields": ["password", "port"],
+                "auth_note": "Password is optional for some MySQL configurations"
             },
             {
                 "type": "postgresql",
@@ -335,7 +338,10 @@ class DataExtractionManager:
                 "category": "relational", 
                 "description": "PostgreSQL relational database",
                 "supports_incremental": True,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["host", "database", "username"],
+                "optional_fields": ["password", "port"],
+                "auth_note": "Password is optional for trusted connections"
             },
             {
                 "type": "mongodb",
@@ -343,7 +349,10 @@ class DataExtractionManager:
                 "category": "nosql",
                 "description": "MongoDB document database",
                 "supports_incremental": True,
-                "supports_real_time": True
+                "supports_real_time": True,
+                "required_fields": ["host", "database"],
+                "optional_fields": ["username", "password", "port", "auth_source"],
+                "auth_note": "Authentication is optional for unsecured instances"
             },
             {
                 "type": "redis",
@@ -351,7 +360,10 @@ class DataExtractionManager:
                 "category": "nosql",
                 "description": "Redis key-value store",
                 "supports_incremental": False,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["host"],
+                "optional_fields": ["password", "port", "database"],
+                "auth_note": "Password is optional for unsecured instances"
             },
             {
                 "type": "kafka",
@@ -359,7 +371,10 @@ class DataExtractionManager:
                 "category": "message_queue",
                 "description": "Apache Kafka message streaming platform",
                 "supports_incremental": False,
-                "supports_real_time": True
+                "supports_real_time": True,
+                "required_fields": ["bootstrap_servers"],
+                "optional_fields": ["username", "password", "security_protocol", "sasl_mechanism"],
+                "auth_note": "Authentication is optional for unsecured clusters"
             },
             {
                 "type": "rabbitmq",
@@ -367,7 +382,10 @@ class DataExtractionManager:
                 "category": "message_queue",
                 "description": "RabbitMQ message broker",
                 "supports_incremental": False,
-                "supports_real_time": True
+                "supports_real_time": True,
+                "required_fields": ["host"],
+                "optional_fields": ["username", "password", "port", "virtual_host"],
+                "auth_note": "Authentication is optional for guest access"
             },
             {
                 "type": "elasticsearch",
@@ -375,7 +393,10 @@ class DataExtractionManager:
                 "category": "nosql",
                 "description": "Elasticsearch search engine",
                 "supports_incremental": True,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["host"],
+                "optional_fields": ["username", "password", "port", "api_key", "use_ssl"],
+                "auth_note": "Supports multiple auth methods: username/password, API key, or no auth"
             },
             {
                 "type": "cassandra",
@@ -383,7 +404,10 @@ class DataExtractionManager:
                 "category": "nosql",
                 "description": "Cassandra distributed database",
                 "supports_incremental": True,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["host"],
+                "optional_fields": ["username", "password", "port", "keyspace"],
+                "auth_note": "Authentication is optional for unsecured clusters"
             },
             {
                 "type": "rest_api",
@@ -391,6 +415,9 @@ class DataExtractionManager:
                 "category": "api",
                 "description": "REST API data source",
                 "supports_incremental": True,
-                "supports_real_time": False
+                "supports_real_time": False,
+                "required_fields": ["base_url"],
+                "optional_fields": ["auth_type", "token", "api_key", "api_key_header"],
+                "auth_note": "Supports Bearer token, API key, or no authentication"
             }
         ]

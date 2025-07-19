@@ -165,12 +165,10 @@ class RelationalDatabaseConnector(DataSourceConnector):
     
     def get_required_config_fields(self) -> List[str]:
         """Return required configuration fields"""
-        base_fields = ['type', 'host', 'database']
-        
-        if self.db_type != 'sqlite':
-            base_fields.extend(['username', 'password'])
-            
-        return base_fields
+        if self.db_type == 'sqlite':
+            return ['type', 'database']  # SQLite only needs database file path
+        else:
+            return ['type', 'host', 'database', 'username']  # Password is optional
     
     async def supports_incremental_extraction(self) -> bool:
         """Relational databases support incremental extraction"""
