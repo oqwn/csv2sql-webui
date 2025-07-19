@@ -301,3 +301,59 @@ async def import_csv_with_sql(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/csv/batch")
+async def import_csv_batch(
+    files: List[UploadFile] = File(...),
+    create_table: bool = Form(True),
+    detect_types: bool = Form(True),
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Import multiple CSV files to database tables
+    """
+    results = []
+    errors = []
+    
+    for file in files:
+        if not file.filename or not file.filename.endswith('.csv'):
+            errors.append({
+                "filename": file.filename or "unknown",
+                "error": "File must be CSV format"
+            })
+            continue
+        
+        try:
+            # Generate table name from filename
+            table_name = file.filename.replace('.csv', '').lower().replace(' ', '_').replace('-', '_')
+            
+            result = await import_csv_to_table(
+                db=db,
+                file=file,
+                table_name=table_name,
+                create_table=create_table,
+                detect_types=detect_types
+            )
+            
+            results.append({
+                "filename": file.filename,
+                "table_name": result["table_name"],
+                "row_count": result["row_count"],
+                "column_count": result["column_count"],
+                "status": "success"
+            })
+            
+        except Exception as e:
+            errors.append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+    
+    return {
+        "total_files": len(files),
+        "successful": len(results),
+        "failed": len(errors),
+        "results": results,
+        "errors": errors
+    }

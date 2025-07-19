@@ -103,7 +103,7 @@ const CSVColumnConfigDialog: React.FC<Props> = ({
       setPreview(data);
       
       // Initialize column configurations
-      const configs: ColumnConfig[] = data.columns.map((col, index) => ({
+      const configs: ColumnConfig[] = data.columns.map((col, _index) => ({
         name: col.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
         original_name: col.original_name,
         type: col.suggested_type,

@@ -57,6 +57,19 @@ export const importAPI = {
     });
   },
 
+  uploadCSVBatch: (files: File[], createTable: boolean = true, detectTypes: boolean = true) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('files', file);
+    });
+    formData.append('create_table', String(createTable));
+    formData.append('detect_types', String(detectTypes));
+    
+    return api.post('/import/csv/batch', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   importCSVWithConfig: (file: File, config: {
     table_name: string;
     columns: Array<{

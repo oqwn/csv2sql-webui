@@ -174,6 +174,7 @@ const SQLEditorPage: React.FC = () => {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [importTableName, setImportTableName] = useState('');
   const [excelSheets, setExcelSheets] = useState<string[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
@@ -182,6 +183,8 @@ const SQLEditorPage: React.FC = () => {
   const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
   const [showSQLPreviewDialog, setShowSQLPreviewDialog] = useState(false);
   const [useAdvancedConfig, setUseAdvancedConfig] = useState(false);
+  const [batchMode, setBatchMode] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
 
   const executeQuery = async (sqlQuery?: string) => {
     const queryToExecute = sqlQuery || query;
@@ -650,6 +653,61 @@ const SQLEditorPage: React.FC = () => {
       await fetchTables();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Import failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBatchImport = async () => {
+    if (uploadFiles.length === 0) {
+      setError('Please select CSV files to import');
+      return;
+    }
+
+    setLoading(true);
+    setImportProgress({ current: 0, total: uploadFiles.length, status: 'Starting batch import...' });
+    
+    try {
+      const response = await importAPI.uploadCSVBatch(
+        uploadFiles,
+        true, // create_table
+        showTypeDetection // detect_types
+      );
+      
+      // Format result message
+      let message = `Batch import completed:\n`;
+      message += `- Total files: ${response.data.total_files}\n`;
+      message += `- Successful: ${response.data.successful}\n`;
+      message += `- Failed: ${response.data.failed}\n\n`;
+      
+      if (response.data.results && response.data.results.length > 0) {
+        message += `Successfully imported tables:\n`;
+        response.data.results.forEach((result: any) => {
+          message += `- ${result.table_name}: ${result.row_count} rows\n`;
+        });
+      }
+      
+      if (response.data.errors && response.data.errors.length > 0) {
+        message += `\nErrors:\n`;
+        response.data.errors.forEach((error: any) => {
+          message += `- ${error.filename}: ${error.error}\n`;
+        });
+      }
+      
+      setResult({
+        columns: ['Status'],
+        rows: [[message]],
+        row_count: response.data.successful,
+        execution_time: 0,
+        executedQuery: `BATCH IMPORT ${uploadFiles.length} CSV files`
+      });
+      
+      setUploadFiles([]);
+      setImportProgress({ current: 0, total: 0, status: '' });
+      await fetchTables();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Batch import failed');
+      setImportProgress({ current: 0, total: 0, status: '' });
     } finally {
       setLoading(false);
     }
@@ -1356,7 +1414,74 @@ const SQLEditorPage: React.FC = () => {
                 </Box>
               </Grid>
               
-              {uploadFile && (
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={batchMode}
+                      onChange={(e) => {
+                        setBatchMode(e.target.checked);
+                        setUploadFile(null);
+                        setUploadFiles([]);
+                        setImportTableName('');
+                        setError('');
+                      }}
+                    />
+                  }
+                  label="Import multiple CSV files"
+                />
+                {batchMode && (
+                  <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4 }}>
+                    Each CSV file will be imported into a separate table named after the file
+                  </Typography>
+                )}
+              </Grid>
+              
+              {/* Show file list for batch mode */}
+              {batchMode && uploadFiles.length > 0 && (
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Files to import:
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, maxHeight: 200, overflow: 'auto' }}>
+                    {uploadFiles.map((file, index) => {
+                      const suggestedTableName = file.name
+                        .replace(/\.csv$/, '')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]/g, '_');
+                      return (
+                        <Box 
+                          key={index} 
+                          sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            mb: 1,
+                            '&:last-child': { mb: 0 }
+                          }}
+                        >
+                          <Box>
+                            <Typography variant="body2">{file.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              → Table: {suggestedTableName}
+                            </Typography>
+                          </Box>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setUploadFiles(uploadFiles.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      );
+                    })}
+                  </Paper>
+                </Grid>
+              )}
+              
+              {uploadFile && !batchMode && (
                 <>
                   <Grid item xs={12}>
                     <TextField
@@ -1466,6 +1591,73 @@ const SQLEditorPage: React.FC = () => {
                           setExcelSheets([]);
                           setSelectedSheet('');
                           setImportAllSheets(false);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </Box>
+                  </Grid>
+                </>
+              )}
+              
+              {/* Batch import section */}
+              {batchMode && uploadFiles.length > 0 && (
+                <>
+                  <Grid item xs={12}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={showTypeDetection}
+                          onChange={(e) => setShowTypeDetection(e.target.checked)}
+                        />
+                      }
+                      label="Automatically detect column data types"
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12}>
+                    <Alert severity="info">
+                      <AlertTitle>Batch Import Information</AlertTitle>
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        <li>Files to import: {uploadFiles.length}</li>
+                        <li>Total size: {(uploadFiles.reduce((sum, f) => sum + f.size, 0) / 1024).toFixed(2)} KB</li>
+                        <li>Each file will be imported into a separate table</li>
+                        <li>Table names will be derived from file names</li>
+                        <li>First row of each file will be used as column headers</li>
+                        {showTypeDetection && <li>Data types will be automatically detected</li>}
+                      </ul>
+                    </Alert>
+                  </Grid>
+                  
+                  {importProgress.total > 0 && (
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <CircularProgress 
+                          variant="determinate" 
+                          value={(importProgress.current / importProgress.total) * 100} 
+                        />
+                        <Typography variant="body2">
+                          {importProgress.status || `Importing ${importProgress.current} of ${importProgress.total} files...`}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Button
+                        variant="contained"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={handleBatchImport}
+                        disabled={loading}
+                      >
+                        {loading ? 'Importing...' : `Import ${uploadFiles.length} Files`}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setUploadFiles([]);
+                          setImportProgress({ current: 0, total: 0, status: '' });
                         }}
                       >
                         Cancel
