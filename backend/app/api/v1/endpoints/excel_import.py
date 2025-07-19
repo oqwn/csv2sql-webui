@@ -15,6 +15,7 @@ from app.services.excel_importer import (
     get_excel_sheets
 )
 from app.services.import_service import import_file_with_sql
+from app.services.file_validation_service import validate_excel_file
 
 router = APIRouter()
 
@@ -39,8 +40,7 @@ async def import_excel(
     - **create_table**: Create table if it doesn't exist
     - **detect_types**: Automatically detect column data types
     """
-    if file.filename and not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
-        raise HTTPException(status_code=400, detail="File must be Excel format (.xlsx or .xls)")
+    validate_excel_file(file.filename)
     
     try:
         if import_all_sheets:
@@ -80,8 +80,7 @@ async def preview_excel(
     - **sheet_name**: Specific sheet to preview (optional, defaults to first sheet)
     - **rows**: Number of rows to preview (default: 10)
     """
-    if file.filename and not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
-        raise HTTPException(status_code=400, detail="File must be Excel format (.xlsx or .xls)")
+    validate_excel_file(file.filename)
     
     try:
         contents = await file.read()
@@ -102,8 +101,7 @@ async def get_sheets(
     
     - **file**: Excel file (.xlsx or .xls)
     """
-    if file.filename and not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
-        raise HTTPException(status_code=400, detail="File must be Excel format (.xlsx or .xls)")
+    validate_excel_file(file.filename)
     
     try:
         contents = await file.read()
@@ -130,8 +128,7 @@ async def import_excel_with_sql(
     """
     Import Excel file with custom CREATE TABLE SQL
     """
-    if file.filename and not (file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
-        raise HTTPException(status_code=400, detail="File must be Excel format (.xlsx or .xls)")
+    validate_excel_file(file.filename)
     
     try:
         result = await import_file_with_sql(

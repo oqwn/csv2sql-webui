@@ -9,8 +9,11 @@ import json
 import re
 
 from app.db.session import get_db
-from app.services.csv_importer import import_csv_to_table, detect_column_type, generate_create_table_sql
+from app.services.csv_importer import import_csv_to_table, generate_create_table_sql
 from app.services.import_service import import_file_with_sql
+from app.services.type_detection import detect_column_type
+from app.services.file_validation_service import validate_csv_file
+from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename
 
 router = APIRouter()
 
@@ -53,8 +56,7 @@ async def import_csv(
     - **create_table**: Create table if it doesn't exist
     - **detect_types**: Automatically detect column data types
     """
-    if file.filename and not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be CSV format")
+    validate_csv_file(file.filename)
     
     try:
         result = await import_csv_to_table(
@@ -81,8 +83,7 @@ async def preview_csv(
     - **file**: CSV file to preview
     - **sample_size**: Number of rows to return as sample (default: 10)
     """
-    if file.filename and not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be CSV format")
+    validate_csv_file(file.filename)
     
     try:
         # Read CSV file
@@ -95,29 +96,17 @@ async def preview_csv(
             series = df[col]
             sql_type, _ = detect_column_type(series)
             
-            # Sanitize column name for SQL
-            sanitized_name = col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
-            sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
-            
-            # Suggest column configuration
-            columns.append({
-                "name": sanitized_name,
-                "original_name": col,
-                "suggested_type": sql_type,
-                "nullable": bool(series.isnull().any()),
-                "unique_values": int(len(series.unique())),
-                "null_count": int(series.isnull().sum()),
-                "sample_values": [str(v) for v in series.dropna().head(5).tolist()] if len(series.dropna()) > 0 else []
-            })
+            # Build column preview info using shared utility
+            column_info = build_column_preview_info(series, col, sql_type)
+            columns.append(column_info)
         
         # Get sample data
         sample_df = df.head(sample_size)
         sample_data = sample_df.to_dict(orient='records')
         
-        # Generate suggested table name
+        # Generate suggested table name using shared utility
         if not table_name and file.filename:
-            suggested_table_name = file.filename.rsplit('.', 1)[0].lower()
-            suggested_table_name = suggested_table_name.replace(' ', '_').replace('-', '_')
+            suggested_table_name = generate_table_name_from_filename(file.filename)
         else:
             suggested_table_name = table_name or "imported_table"
         
@@ -150,8 +139,7 @@ async def import_csv_with_config(
     """
     Import CSV file with custom column configuration
     """
-    if file.filename and not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be CSV format")
+    validate_csv_file(file.filename)
     
     try:
         # Parse config from JSON string
@@ -238,8 +226,7 @@ async def import_csv_with_sql(
     """
     Import CSV file with custom CREATE TABLE SQL
     """
-    if file.filename and not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="File must be CSV format")
+    validate_csv_file(file.filename)
     
     try:
         result = await import_file_with_sql(

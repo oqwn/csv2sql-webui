@@ -8,7 +8,10 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from openpyxl import load_workbook
 
-from .csv_importer import detect_column_type, create_table_from_dataframe, generate_create_table_sql
+from .csv_importer import create_table_from_dataframe, generate_create_table_sql
+from app.services.type_detection import detect_column_type
+from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename, sanitize_column_name
+from app.services.dataframe_converter import convert_dataframe_types_from_detection
 
 
 def get_excel_sheets(file_content: bytes) -> List[str]:
@@ -61,12 +64,11 @@ async def import_excel_to_table(
     
     if not table_name:
         filename = file.filename or "uploaded_table"
-        base_name = filename.replace('.xlsx', '').replace('.xls', '').lower().replace(' ', '_').replace('-', '_')
-        # Include sheet name if multiple sheets
+        # Generate table name using shared utility
         if len(sheets) > 1:
-            table_name = f"{base_name}_{selected_sheet.lower().replace(' ', '_')}"
+            table_name = generate_table_name_from_filename(filename, selected_sheet)
         else:
-            table_name = base_name
+            table_name = generate_table_name_from_filename(filename)
     
     # Detect column types
     column_types = {}
@@ -77,28 +79,9 @@ async def import_excel_to_table(
             sql_type, pandas_dtype = detect_column_type(df[col])
             column_types[col] = sql_type
             type_conversions[col] = pandas_dtype
-            
-            # Convert data types in DataFrame
-            if pandas_dtype == "int16":
-                df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int16')
-            elif pandas_dtype == "int32":
-                df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int32')
-            elif pandas_dtype == "int64":
-                df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
-            elif pandas_dtype == "float64":
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            elif pandas_dtype == "bool":
-                # Convert various boolean representations
-                df[col] = df[col].map({
-                    'true': True, 'false': False,
-                    'True': True, 'False': False,
-                    'TRUE': True, 'FALSE': False,
-                    '1': True, '0': False,
-                    1: True, 0: False,
-                    True: True, False: False
-                })
-            elif pandas_dtype == "datetime64[ns]":
-                df[col] = pd.to_datetime(df[col], errors='coerce')
+        
+        # Convert DataFrame types using shared utility
+        df = convert_dataframe_types_from_detection(df, column_types)
     
     # Rename columns to be SQL-safe
     original_columns = list(df.columns)
@@ -159,7 +142,7 @@ async def import_excel_all_sheets(
     
     if not table_prefix:
         filename = file.filename or "uploaded"
-        table_prefix = filename.replace('.xlsx', '').replace('.xls', '').lower().replace(' ', '_').replace('-', '_')
+        table_prefix = generate_table_name_from_filename(filename)
     
     results = []
     total_rows = 0
@@ -232,19 +215,10 @@ def preview_excel_data(file_content: bytes, sheet_name: Optional[str] = None, ro
         sql_type, _ = detect_column_type(df_full[col])
         column_types_dict[col] = sql_type
         
-        # Sanitize column name for SQL
-        sanitized_name = str(col).strip().replace(' ', '_').replace('-', '_').lower()
+        # Build column preview info using shared utility
         series = df_full[col]
-        
-        columns.append({
-            "name": sanitized_name,
-            "original_name": str(col),
-            "suggested_type": sql_type,
-            "nullable": bool(series.isnull().any()),
-            "unique_values": int(len(series.unique())),
-            "null_count": int(series.isnull().sum()),
-            "sample_values": [str(v) for v in series.dropna().head(5).tolist()] if len(series.dropna()) > 0 else []
-        })
+        column_info = build_column_preview_info(series, str(col), sql_type)
+        columns.append(column_info)
     
     # Generate CREATE TABLE SQL
     suggested_table_name = f"sheet_{selected_sheet.lower().replace(' ', '_')}"
