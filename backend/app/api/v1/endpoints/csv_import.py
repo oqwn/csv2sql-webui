@@ -1,9 +1,11 @@
 from typing import Any, Optional, List, Dict
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from pydantic import BaseModel
 import pandas as pd
 import io
+import json
 
 from app.db.session import get_db
 from app.services.csv_importer import import_csv_to_table, detect_column_type
@@ -91,15 +93,19 @@ async def preview_csv(
             series = df[col]
             sql_type, _ = detect_column_type(series)
             
+            # Sanitize column name for SQL
+            sanitized_name = col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
+            sanitized_name = ''.join(c for c in sanitized_name if c.isalnum() or c == '_')
+            
             # Suggest column configuration
             columns.append({
-                "name": col,
+                "name": sanitized_name,
                 "original_name": col,
                 "suggested_type": sql_type,
-                "nullable": series.isnull().any(),
-                "unique_values": len(series.unique()),
-                "null_count": series.isnull().sum(),
-                "sample_values": series.dropna().head(5).tolist() if len(series.dropna()) > 0 else []
+                "nullable": bool(series.isnull().any()),
+                "unique_values": int(len(series.unique())),
+                "null_count": int(series.isnull().sum()),
+                "sample_values": [str(v) for v in series.dropna().head(5).tolist()] if len(series.dropna()) > 0 else []
             })
         
         # Get sample data
@@ -116,7 +122,7 @@ async def preview_csv(
         # Generate CREATE TABLE SQL
         column_definitions = []
         for col in columns:
-            col_name = col["name"]
+            col_name = col["name"]  # This is already sanitized
             col_type = col["suggested_type"]
             
             # Build column definition
