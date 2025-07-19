@@ -34,7 +34,7 @@ const Layout: React.FC = () => {
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'SQL Editor', icon: <CodeIcon />, path: '/sql-editor' },
-    { text: 'Import Data', icon: <CloudUploadIcon />, path: '/import' },
+    { text: 'Import Data', icon: <CloudUploadIcon />, path: '/sql-editor?tab=import' },
   ];
 
   const drawer = (
@@ -44,7 +44,9 @@ const Layout: React.FC = () => {
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
-              selected={location.pathname === item.path}
+              selected={item.path.includes('?') 
+                ? location.pathname + location.search === item.path
+                : location.pathname === item.path}
               onClick={() => navigate(item.path)}
             >
               <ListItemIcon>{item.icon}</ListItemIcon>

@@ -32,7 +32,7 @@
 
 ## Phase 3: CSV/Excel Import/Export
 - [x] CSV to SQL converter
-  - [x] CSV file upload interface
+  - [x] CSV file upload interface (drag-and-drop)
   - [ ] Column type detection
   - [ ] Table creation from CSV structure
   - [x] Bulk data import

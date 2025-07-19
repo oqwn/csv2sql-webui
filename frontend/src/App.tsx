@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from './components/common/Layout';
 import DashboardPage from './pages/DashboardPage';
 import SQLEditorPage from './pages/SQLEditorPage';
-import ImportPage from './pages/ImportPage';
 
 const theme = createTheme({
   palette: {
@@ -32,7 +31,6 @@ function App() {
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="sql-editor" element={<SQLEditorPage />} />
-              <Route path="import" element={<ImportPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

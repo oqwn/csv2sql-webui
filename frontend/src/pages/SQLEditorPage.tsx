@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -148,7 +149,11 @@ const TABLE_TEMPLATES = {
 };
 
 const SQLEditorPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = searchParams.get('tab') === 'import' ? 3 : 0;
+  
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [query, setQuery] = useState('');
   const [createTableName, setCreateTableName] = useState('');
   const [includeIdColumn, setIncludeIdColumn] = useState(true);
@@ -218,6 +223,13 @@ const SQLEditorPage: React.FC = () => {
   React.useEffect(() => {
     fetchTables();
   }, []);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('tab') === 'import') {
+      setActiveTab(3);
+    }
+  }, [location.search]);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

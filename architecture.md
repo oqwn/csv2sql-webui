@@ -73,7 +73,8 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 │  ✅ SQL Execution       │    │  ✅ Protected Routes    │
 │  ✅ CSV Import          │    │  ✅ Auth Context        │
 │  ⬜ Excel Import        │    │  ✅ SQL Editor          │
-│  ⬜ Batch Scheduling    │    │  ⬜ BI Dashboard        │
+│  ⬜ Batch Scheduling    │    │  ✅ Import UI (Drag-n-Drop) │
+│                         │    │  ⬜ BI Dashboard        │
 └────────┬────────────────┘    └─────────────────────────┘
          │
          ├──────────────┬──────────────┐
@@ -200,8 +201,7 @@ frontend/
     ├── pages/
     │   ├── LoginPage.tsx            # Login interface
     │   ├── DashboardPage.tsx        # Main dashboard
-    │   ├── SQLEditorPage.tsx        # SQL query interface
-    │   └── ImportPage.tsx           # CSV import interface
+    │   └── SQLEditorPage.tsx        # SQL query interface with integrated import
     └── services/
         └── api.ts                   # API client with interceptors
 ```
