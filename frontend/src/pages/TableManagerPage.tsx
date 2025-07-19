@@ -206,14 +206,15 @@ const TableManagerPage: React.FC = () => {
       }
     });
     
-    // Remove primary key if it's auto-generated
+    // Always remove primary key from form data for updates
+    // The backend will handle the WHERE clause using the primary key value separately
     const primaryKey = tableInfo?.primary_key;
     const primaryKeyColumn = tableInfo?.columns.find(col => col.name === primaryKey);
     
     console.log('Primary key info:', { primaryKey, primaryKeyColumn });
     
-    if (primaryKey && primaryKeyColumn && primaryKeyColumn.type.toLowerCase().includes('serial')) {
-      console.log('Removing auto-generated primary key from form data');
+    if (primaryKey) {
+      console.log('Removing primary key from form data to prevent overwriting');
       delete editData[primaryKey];
     }
     

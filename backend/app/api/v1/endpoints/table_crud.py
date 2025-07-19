@@ -169,16 +169,22 @@ async def update_record(
     Update an existing record in the specified table
     """
     try:
-        # Build UPDATE query
+        # Build UPDATE query - exclude primary key from data to prevent overwriting
         set_clauses = []
         params = {}
         
         for col, value in request.data.items():
-            set_clauses.append(f'"{col}" = :{col}')
-            params[col] = value
+            # Skip primary key column to avoid setting it in the update
+            if col != request.primary_key_column:
+                set_clauses.append(f'"{col}" = :{col}')
+                params[col] = value
         
-        # Add primary key to params
+        # Add primary key to params for WHERE clause
         params['pk_value'] = request.primary_key_value
+        
+        # Check if we have anything to update
+        if not set_clauses:
+            raise HTTPException(status_code=400, detail="No fields to update")
         
         query = f"""
         UPDATE "{request.table_name}"
