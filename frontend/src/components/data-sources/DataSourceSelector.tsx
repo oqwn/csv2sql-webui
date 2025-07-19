@@ -88,6 +88,42 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         password: '',
         database: 0
       },
+      kafka: {
+        bootstrap_servers: 'localhost:9092',
+        security_protocol: 'PLAINTEXT',
+        sasl_mechanism: 'PLAIN',
+        sasl_username: '',
+        sasl_password: '',
+        consumer_group: 'csv2sql_consumer',
+        auto_offset_reset: 'earliest'
+      },
+      rabbitmq: {
+        host: 'localhost',
+        port: 5672,
+        username: 'guest',
+        password: 'guest',
+        virtual_host: '/',
+        exchange: '',
+        queue_prefix: 'csv2sql'
+      },
+      elasticsearch: {
+        host: 'localhost',
+        port: 9200,
+        username: '',
+        password: '',
+        use_ssl: false,
+        verify_certs: true,
+        api_key: ''
+      },
+      cassandra: {
+        host: 'localhost',
+        port: 9042,
+        username: '',
+        password: '',
+        keyspace: '',
+        datacenter: '',
+        protocol_version: 4
+      },
       rest_api: {
         base_url: '',
         auth_type: 'none',
@@ -276,6 +312,62 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'password', label: 'Password', type: 'password', required: false },
         { name: 'database', label: 'Database Number', type: 'number', required: false, helperText: 'Default: 0' }
+      ],
+      kafka: [
+        { name: 'bootstrap_servers', label: 'Bootstrap Servers', type: 'text', required: true, helperText: 'Comma-separated list (e.g., localhost:9092)' },
+        { 
+          name: 'security_protocol', 
+          label: 'Security Protocol', 
+          type: 'select', 
+          required: true,
+          options: [
+            { value: 'PLAINTEXT', label: 'PLAINTEXT' },
+            { value: 'SASL_PLAINTEXT', label: 'SASL_PLAINTEXT' },
+            { value: 'SASL_SSL', label: 'SASL_SSL' },
+            { value: 'SSL', label: 'SSL' }
+          ]
+        },
+        { name: 'sasl_mechanism', label: 'SASL Mechanism', type: 'text', required: false, helperText: 'e.g., PLAIN, SCRAM-SHA-256' },
+        { name: 'sasl_username', label: 'SASL Username', type: 'text', required: false },
+        { name: 'sasl_password', label: 'SASL Password', type: 'password', required: false },
+        { name: 'consumer_group', label: 'Consumer Group', type: 'text', required: false, helperText: 'Default: csv2sql_consumer' },
+        { 
+          name: 'auto_offset_reset', 
+          label: 'Auto Offset Reset', 
+          type: 'select', 
+          required: false,
+          options: [
+            { value: 'earliest', label: 'Earliest' },
+            { value: 'latest', label: 'Latest' }
+          ]
+        }
+      ],
+      rabbitmq: [
+        { name: 'host', label: 'Host', type: 'text', required: true },
+        { name: 'port', label: 'Port', type: 'number', required: true },
+        { name: 'username', label: 'Username', type: 'text', required: true },
+        { name: 'password', label: 'Password', type: 'password', required: true },
+        { name: 'virtual_host', label: 'Virtual Host', type: 'text', required: false, helperText: 'Default: /' },
+        { name: 'exchange', label: 'Exchange', type: 'text', required: false },
+        { name: 'queue_prefix', label: 'Queue Prefix', type: 'text', required: false, helperText: 'Default: csv2sql' }
+      ],
+      elasticsearch: [
+        { name: 'host', label: 'Host', type: 'text', required: true },
+        { name: 'port', label: 'Port', type: 'number', required: true },
+        { name: 'username', label: 'Username', type: 'text', required: false },
+        { name: 'password', label: 'Password', type: 'password', required: false },
+        { name: 'use_ssl', label: 'Use SSL', type: 'checkbox', required: false },
+        { name: 'verify_certs', label: 'Verify Certificates', type: 'checkbox', required: false },
+        { name: 'api_key', label: 'API Key', type: 'password', required: false }
+      ],
+      cassandra: [
+        { name: 'host', label: 'Host', type: 'text', required: true },
+        { name: 'port', label: 'Port', type: 'number', required: true },
+        { name: 'username', label: 'Username', type: 'text', required: false },
+        { name: 'password', label: 'Password', type: 'password', required: false },
+        { name: 'keyspace', label: 'Keyspace', type: 'text', required: false },
+        { name: 'datacenter', label: 'Datacenter', type: 'text', required: false },
+        { name: 'protocol_version', label: 'Protocol Version', type: 'number', required: false, helperText: 'Default: 4' }
       ],
       rest_api: [
         { name: 'base_url', label: 'Base URL', type: 'url', required: true },

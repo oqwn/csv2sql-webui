@@ -3,13 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import json
+from datetime import datetime
 
 from app.db.session import get_db
 from app.services.data_extraction.extraction_manager import DataExtractionManager
+from app.services.data_extraction.realtime_sync_manager import RealTimeSyncManager
 from app.models.data_source import DataSource, ExtractionJob, DataSourceType, ExtractionMode
 
 router = APIRouter()
 extraction_manager = DataExtractionManager()
+sync_manager = RealTimeSyncManager()
 
 
 class DataSourceCreate(BaseModel):
@@ -47,6 +50,17 @@ class DataPreviewRequest(BaseModel):
     connection_config: Dict[str, Any]
     source_name: str
     limit: int = 100
+
+
+class RealTimeSyncRequest(BaseModel):
+    data_source_id: int
+    source_name: str
+    target_table: str
+    sync_config: Optional[Dict[str, Any]] = None
+
+
+class RealTimeSyncStopRequest(BaseModel):
+    sync_id: str
 
 
 @router.get("/supported")
@@ -344,3 +358,108 @@ async def run_extraction_job(
         
     finally:
         db.close()
+
+
+# Real-time sync endpoints
+@router.post("/{data_source_id}/sync/start")
+async def start_real_time_sync(
+    data_source_id: int,
+    sync_request: RealTimeSyncRequest,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Start real-time synchronization for a data source"""
+    # Get data source
+    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Generate unique sync ID
+    import uuid
+    sync_id = f"{data_source.type}_{data_source_id}_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        result = await sync_manager.start_sync(
+            sync_id=sync_id,
+            data_source_type=data_source.type,
+            connection_config=data_source.connection_config,
+            source_name=sync_request.source_name,
+            target_table=sync_request.target_table,
+            target_db=db,
+            sync_config=sync_request.sync_config
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/sync/stop")
+async def stop_real_time_sync(
+    stop_request: RealTimeSyncStopRequest
+) -> Dict[str, Any]:
+    """Stop real-time synchronization"""
+    try:
+        result = await sync_manager.stop_sync(stop_request.sync_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/sync/status")
+async def get_sync_status(sync_id: Optional[str] = None) -> Dict[str, Any]:
+    """Get status of real-time synchronization(s)"""
+    return sync_manager.get_sync_status(sync_id)
+
+
+@router.post("/{data_source_id}/validate-realtime")
+async def validate_real_time_config(
+    data_source_id: int,
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Validate if data source supports real-time sync and check configuration"""
+    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    try:
+        if data_source.type == 'mysql':
+            from app.services.data_extraction.mysql_binlog_connector import MySQLBinlogConnector
+            connector = MySQLBinlogConnector(data_source.connection_config)
+            result = await connector.validate_binlog_configuration()
+            
+            if result['valid']:
+                current_pos = await connector.get_current_binlog_position()
+                result['current_position'] = current_pos
+            
+            return result
+            
+        elif data_source.type == 'mongodb':
+            # MongoDB change streams require replica set
+            return {
+                'valid': True,
+                'requirements': [
+                    'MongoDB must be running as a replica set',
+                    'User must have changeStream privileges'
+                ],
+                'supports_resume': True
+            }
+            
+        elif data_source.type in ['kafka', 'rabbitmq']:
+            return {
+                'valid': True,
+                'note': 'Message queues have inherent real-time capabilities',
+                'streaming': True
+            }
+            
+        else:
+            return {
+                'valid': False,
+                'error': f'Real-time sync not supported for {data_source.type}'
+            }
+            
+    except Exception as e:
+        return {
+            'valid': False,
+            'error': str(e)
+        }

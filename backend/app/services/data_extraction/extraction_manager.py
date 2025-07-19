@@ -4,6 +4,10 @@ from .relational_connector import RelationalDatabaseConnector
 from .mongodb_connector import MongoDBConnector
 from .redis_connector import RedisConnector
 from .api_connector import APIConnector
+from .kafka_connector import KafkaConnector
+from .rabbitmq_connector import RabbitMQConnector
+from .elasticsearch_connector import ElasticsearchConnector
+from .cassandra_connector import CassandraConnector
 from ..type_detection import detect_column_type
 from ..import_service import import_file_with_sql
 from sqlalchemy.orm import Session
@@ -31,6 +35,12 @@ class DataExtractionManager:
             # NoSQL databases
             'mongodb': MongoDBConnector,
             'redis': RedisConnector,
+            'elasticsearch': ElasticsearchConnector,
+            'cassandra': CassandraConnector,
+            
+            # Message queues
+            'kafka': KafkaConnector,
+            'rabbitmq': RabbitMQConnector,
             
             # APIs
             'rest_api': APIConnector,
@@ -341,6 +351,38 @@ class DataExtractionManager:
                 "category": "nosql",
                 "description": "Redis key-value store",
                 "supports_incremental": False,
+                "supports_real_time": False
+            },
+            {
+                "type": "kafka",
+                "name": "Apache Kafka",
+                "category": "message_queue",
+                "description": "Apache Kafka message streaming platform",
+                "supports_incremental": False,
+                "supports_real_time": True
+            },
+            {
+                "type": "rabbitmq",
+                "name": "RabbitMQ",
+                "category": "message_queue",
+                "description": "RabbitMQ message broker",
+                "supports_incremental": False,
+                "supports_real_time": True
+            },
+            {
+                "type": "elasticsearch",
+                "name": "Elasticsearch",
+                "category": "nosql",
+                "description": "Elasticsearch search engine",
+                "supports_incremental": True,
+                "supports_real_time": False
+            },
+            {
+                "type": "cassandra",
+                "name": "Apache Cassandra",
+                "category": "nosql",
+                "description": "Cassandra distributed database",
+                "supports_incremental": True,
                 "supports_real_time": False
             },
             {

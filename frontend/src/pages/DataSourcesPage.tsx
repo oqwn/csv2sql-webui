@@ -24,7 +24,14 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  TextField
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Switch,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -67,8 +74,16 @@ const DataSourcesPage: React.FC = () => {
     target_table: '',
     extraction_mode: 'full',
     source_query: '',
-    chunk_size: 10000
+    chunk_size: 10000,
+    incremental_column: '',
+    incremental_last_value: '',
+    enable_real_time: false,
+    batch_size: 1000,
+    max_parallel_chunks: 4
   });
+  const [incrementalColumns, setIncrementalColumns] = useState<string[]>([]);
+  const [supportsIncremental, setSupportsIncremental] = useState(false);
+  const [supportsRealTime, setSupportsRealTime] = useState(false);
 
   useEffect(() => {
     loadDataSources();
@@ -132,9 +147,38 @@ const DataSourcesPage: React.FC = () => {
         100
       );
       setPreviewData(response.data);
+      
+      // Load incremental extraction capabilities
+      await loadIncrementalInfo(sourceName);
     } catch (err: any) {
       setError('Failed to preview data');
       setPreviewData({ status: 'error', error: 'Failed to load preview', columns: [], sample_data: [], row_count: 0 });
+    }
+  };
+
+  const loadIncrementalInfo = async (sourceName: string) => {
+    if (!selectedDataSource) return;
+
+    try {
+      // This would be a new API endpoint to get incremental extraction info
+      const response = await fetch('/api/v1/data-sources/incremental-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: selectedDataSource.type,
+          connection_config: selectedDataSource.connection_config,
+          source_name: sourceName
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setSupportsIncremental(data.supports_incremental);
+        setSupportsRealTime(data.supports_real_time);
+        setIncrementalColumns(data.incremental_columns || []);
+      }
+    } catch (err) {
+      console.warn('Failed to load incremental info:', err);
     }
   };
 
@@ -142,21 +186,58 @@ const DataSourcesPage: React.FC = () => {
     if (!selectedDataSource || !previewSource) return;
 
     try {
-      const job = {
-        job_name: extractionForm.job_name,
-        extraction_mode: extractionForm.extraction_mode,
-        source_query: previewSource,
-        target_table: extractionForm.target_table,
-        config: {
-          chunk_size: extractionForm.chunk_size
-        }
-      };
+      if (extractionForm.extraction_mode === 'real_time') {
+        // Start real-time sync
+        const syncConfig = {
+          transformations: {},
+          soft_delete: true,
+          ...(extractionForm.incremental_column && {
+            incremental_column: extractionForm.incremental_column,
+            last_value: extractionForm.incremental_last_value
+          })
+        };
 
-      await dataSourceAPI.extractData(selectedDataSource.id, job);
-      setExtractionDialog(false);
-      alert('Extraction job started successfully!');
+        const response = await fetch(`/api/v1/data-sources/${selectedDataSource.id}/sync/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source_name: previewSource,
+            target_table: extractionForm.target_table,
+            sync_config: syncConfig
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to start real-time sync');
+        }
+
+        const result = await response.json();
+        setExtractionDialog(false);
+        alert(`Real-time sync started! Sync ID: ${result.sync_id}`);
+      } else {
+        // Regular extraction job
+        const job = {
+          job_name: extractionForm.job_name,
+          extraction_mode: extractionForm.extraction_mode,
+          source_query: previewSource,
+          target_table: extractionForm.target_table,
+          config: {
+            chunk_size: extractionForm.chunk_size,
+            batch_size: extractionForm.batch_size,
+            max_parallel_chunks: extractionForm.max_parallel_chunks,
+            ...(extractionForm.extraction_mode === 'incremental' && {
+              incremental_column: extractionForm.incremental_column,
+              last_value: extractionForm.incremental_last_value
+            })
+          }
+        };
+
+        await dataSourceAPI.extractData(selectedDataSource.id, job);
+        setExtractionDialog(false);
+        alert(`${extractionForm.extraction_mode.charAt(0).toUpperCase() + extractionForm.extraction_mode.slice(1)} extraction job started successfully!`);
+      }
     } catch (err: any) {
-      setError('Failed to start extraction job');
+      setError(`Failed to start ${extractionForm.extraction_mode} extraction: ${err.message}`);
     }
   };
 
@@ -391,28 +472,165 @@ const DataSourcesPage: React.FC = () => {
       />
 
       {/* Extraction Dialog */}
-      <Dialog open={extractionDialog} onClose={() => setExtractionDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Start Data Extraction</DialogTitle>
+      <Dialog open={extractionDialog} onClose={() => setExtractionDialog(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Configure Data Extraction</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="Job Name"
-              value={extractionForm.job_name}
-              onChange={(e) => setExtractionForm(prev => ({ ...prev, job_name: e.target.value }))}
-              required
-            />
-            <TextField
-              label="Target Table Name"
-              value={extractionForm.target_table}
-              onChange={(e) => setExtractionForm(prev => ({ ...prev, target_table: e.target.value }))}
-              required
-            />
-            <TextField
-              label="Chunk Size"
-              type="number"
-              value={extractionForm.chunk_size}
-              onChange={(e) => setExtractionForm(prev => ({ ...prev, chunk_size: parseInt(e.target.value) }))}
-            />
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 1 }}>
+            
+            {/* Basic Configuration */}
+            <Box>
+              <Typography variant="h6" gutterBottom>Basic Configuration</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Job Name"
+                    value={extractionForm.job_name}
+                    onChange={(e) => setExtractionForm(prev => ({ ...prev, job_name: e.target.value }))}
+                    required
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Target Table Name"
+                    value={extractionForm.target_table}
+                    onChange={(e) => setExtractionForm(prev => ({ ...prev, target_table: e.target.value }))}
+                    required
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Extraction Mode</InputLabel>
+                    <Select
+                      value={extractionForm.extraction_mode}
+                      onChange={(e) => setExtractionForm(prev => ({ ...prev, extraction_mode: e.target.value }))}
+                      label="Extraction Mode"
+                    >
+                      <MenuItem value="full">Full Extraction</MenuItem>
+                      {supportsIncremental && <MenuItem value="incremental">Incremental Extraction</MenuItem>}
+                      <MenuItem value="chunked">Chunked Extraction</MenuItem>
+                      {supportsRealTime && <MenuItem value="real_time">Real-time Sync</MenuItem>}
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            </Box>
+
+            <Divider />
+
+            {/* Performance Configuration */}
+            <Box>
+              <Typography variant="h6" gutterBottom>Performance Settings</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Chunk Size"
+                    type="number"
+                    value={extractionForm.chunk_size}
+                    onChange={(e) => setExtractionForm(prev => ({ ...prev, chunk_size: parseInt(e.target.value) }))}
+                    helperText="Number of records per chunk"
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Batch Size"
+                    type="number"
+                    value={extractionForm.batch_size}
+                    onChange={(e) => setExtractionForm(prev => ({ ...prev, batch_size: parseInt(e.target.value) }))}
+                    helperText="Records per database insert"
+                    fullWidth
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    label="Max Parallel Chunks"
+                    type="number"
+                    value={extractionForm.max_parallel_chunks}
+                    onChange={(e) => setExtractionForm(prev => ({ ...prev, max_parallel_chunks: parseInt(e.target.value) }))}
+                    helperText="Maximum concurrent processing"
+                    fullWidth
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+
+            {/* Incremental Configuration */}
+            {(extractionForm.extraction_mode === 'incremental' && supportsIncremental) && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="h6" gutterBottom>Incremental Settings</Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Incremental Column</InputLabel>
+                        <Select
+                          value={extractionForm.incremental_column}
+                          onChange={(e) => setExtractionForm(prev => ({ ...prev, incremental_column: e.target.value }))}
+                          label="Incremental Column"
+                        >
+                          {incrementalColumns.map((col) => (
+                            <MenuItem key={col} value={col}>{col}</MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField
+                        label="Last Value"
+                        value={extractionForm.incremental_last_value}
+                        onChange={(e) => setExtractionForm(prev => ({ ...prev, incremental_last_value: e.target.value }))}
+                        helperText="Leave empty to start from beginning"
+                        fullWidth
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </>
+            )}
+
+            {/* Real-time Configuration */}
+            {(extractionForm.extraction_mode === 'real_time' && supportsRealTime) && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="h6" gutterBottom>Real-time Settings</Typography>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Real-time sync will continuously monitor changes and sync them to the target table.
+                  </Alert>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={extractionForm.enable_real_time}
+                        onChange={(e) => setExtractionForm(prev => ({ ...prev, enable_real_time: e.target.checked }))}
+                      />
+                    }
+                    label="Enable Real-time Synchronization"
+                  />
+                </Box>
+              </>
+            )}
+
+            {/* Chunked Configuration */}
+            {extractionForm.extraction_mode === 'chunked' && (
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="h6" gutterBottom>Chunked Extraction</Typography>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Chunked extraction processes large datasets in smaller batches to optimize memory usage and performance.
+                  </Alert>
+                  <Typography variant="body2" color="text.secondary">
+                    Chunk size: {extractionForm.chunk_size.toLocaleString()} records<br/>
+                    Parallel chunks: {extractionForm.max_parallel_chunks}<br/>
+                    Estimated memory usage: ~{Math.round(extractionForm.chunk_size * extractionForm.max_parallel_chunks / 1000)}K records in memory
+                  </Typography>
+                </Box>
+              </>
+            )}
+
           </Box>
         </DialogContent>
         <DialogActions>
@@ -420,9 +638,13 @@ const DataSourcesPage: React.FC = () => {
           <Button
             variant="contained"
             onClick={handleStartExtraction}
-            disabled={!extractionForm.job_name || !extractionForm.target_table}
+            disabled={
+              !extractionForm.job_name || 
+              !extractionForm.target_table ||
+              (extractionForm.extraction_mode === 'incremental' && !extractionForm.incremental_column)
+            }
           >
-            Start Extraction
+            {extractionForm.extraction_mode === 'real_time' ? 'Start Real-time Sync' : 'Start Extraction'}
           </Button>
         </DialogActions>
       </Dialog>

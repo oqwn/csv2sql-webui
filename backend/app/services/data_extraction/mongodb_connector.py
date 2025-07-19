@@ -4,6 +4,7 @@ from .base_connector import DataSourceConnector, ExtractionConfig
 import logging
 from datetime import datetime
 import json
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -360,3 +361,86 @@ class MongoDBConnector(DataSourceConnector):
                 converted[key] = value
                 
         return converted
+    
+    async def start_real_time_sync(
+        self,
+        source: str,
+        callback: callable,
+        resume_token: Optional[str] = None
+    ) -> str:
+        """Start real-time sync using MongoDB Change Streams"""
+        try:
+            if not self.database:
+                await self.connect()
+            
+            collection = self.database[source]
+            
+            # Set up change stream options
+            pipeline = []
+            options = {}
+            
+            if resume_token:
+                options['resume_after'] = {'_data': resume_token}
+            else:
+                options['start_at_operation_time'] = datetime.utcnow()
+            
+            # Start change stream
+            change_stream = collection.watch(pipeline, **options)
+            
+            logger.info(f"Started real-time sync for collection {source}")
+            
+            # Process changes
+            for change in change_stream:
+                try:
+                    # Convert change document to DataFrame-compatible format
+                    change_data = self._process_change_event(change)
+                    
+                    if change_data:
+                        df = pd.DataFrame([change_data])
+                        
+                        # Call the callback with the change data
+                        await callback(df, change['operationType'])
+                        
+                except Exception as e:
+                    logger.error(f"Error processing change event: {str(e)}")
+                    continue
+            
+            return change_stream.resume_token['_data'] if change_stream.resume_token else ""
+            
+        except Exception as e:
+            logger.error(f"Failed to start real-time sync: {str(e)}")
+            raise
+    
+    def _process_change_event(self, change: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Process a change stream event into DataFrame-compatible format"""
+        try:
+            operation_type = change['operationType']
+            
+            # Extract the document based on operation type
+            if operation_type in ['insert', 'replace']:
+                document = change['fullDocument']
+            elif operation_type == 'update':
+                # For updates, combine the document key with updated fields
+                document = change['documentKey'].copy()
+                if 'updateDescription' in change and 'updatedFields' in change['updateDescription']:
+                    document.update(change['updateDescription']['updatedFields'])
+            elif operation_type == 'delete':
+                document = change['documentKey']
+            else:
+                return None
+            
+            # Convert ObjectIds and add metadata
+            processed_doc = self._convert_objectids(document)
+            processed_doc['_change_operation'] = operation_type
+            processed_doc['_change_timestamp'] = change['clusterTime'].time if hasattr(change['clusterTime'], 'time') else datetime.utcnow()
+            
+            return processed_doc
+            
+        except Exception as e:
+            logger.error(f"Error processing change event: {str(e)}")
+            return None
+    
+    async def stop_real_time_sync(self):
+        """Stop real-time synchronization"""
+        # Change streams automatically close when the client disconnects
+        await self.disconnect()
