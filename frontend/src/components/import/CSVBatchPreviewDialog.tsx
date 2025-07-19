@@ -28,7 +28,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   TableChart as TableChartIcon,
 } from '@mui/icons-material';
-import { importAPI } from '../../services/api';
+import { importAPI, sqlAPI } from '../../services/api';
 import { SQLEditor } from '../sql/SQLEditor';
 
 interface FilePreview {
@@ -159,12 +159,27 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
     setImporting(true);
     
     try {
-      // For files with custom SQL, use the import-with-sql endpoint
+      // Import files with custom SQL by executing SQL first, then importing data
       const importPromises = filePreviews.map(async (fp) => {
+        const isExcel = fp.file.name.endsWith('.xlsx') || fp.file.name.endsWith('.xls');
+        
         if (fp.customSQL) {
-          return importAPI.importCSVWithSQL(fp.file, fp.customSQL, fp.tableName);
+          // Execute the CREATE TABLE SQL first
+          await sqlAPI.executeQuery(fp.customSQL);
+          
+          // Then import the data into the created table
+          if (isExcel) {
+            return importAPI.uploadExcel(fp.file, fp.tableName, undefined, false, false, false);
+          } else {
+            return importAPI.uploadCSV(fp.file, fp.tableName, false, false);
+          }
         } else {
-          return importAPI.uploadCSV(fp.file, fp.tableName, true, true);
+          // Standard import with auto-detection
+          if (isExcel) {
+            return importAPI.uploadExcel(fp.file, fp.tableName, undefined, false, true, true);
+          } else {
+            return importAPI.uploadCSV(fp.file, fp.tableName, true, true);
+          }
         }
       });
 

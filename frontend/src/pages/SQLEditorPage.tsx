@@ -1870,21 +1870,32 @@ const SQLEditorPage: React.FC = () => {
             tableName={importTableName || uploadFiles[0]?.name.replace(/\.csv$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}
             onImport={async (sql?: string) => {
               if (sql) {
-                // Custom SQL provided - import with SQL
+                // Custom SQL provided - execute SQL first, then import data
                 try {
+                  const file = uploadFiles[0];
+                  const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
                   const tableNameMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([^"\s(]+)"?/i);
-                  const extractedTableName = tableNameMatch ? tableNameMatch[1] : (importTableName || uploadFiles[0]?.name.replace(/\.csv$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                  const extractedTableName = tableNameMatch ? tableNameMatch[1] : (importTableName || file.name.replace(/\.(csv|xlsx|xls)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
                   
-                  await importAPI.importCSVWithSQL(uploadFiles[0], sql, extractedTableName);
+                  // First, execute the CREATE TABLE SQL
+                  await sqlAPI.executeQuery(sql);
+                  
+                  // Then import the data into the created table
+                  if (isExcel) {
+                    await importAPI.uploadExcel(file, extractedTableName, selectedSheet, false, false, false);
+                  } else {
+                    await importAPI.uploadCSV(file, extractedTableName, false, false);
+                  }
                   
                   setResult({
-                    message: 'CSV imported successfully with custom SQL',
+                    message: `${isExcel ? 'Excel' : 'CSV'} imported successfully with custom SQL`,
                     row_count: -1,
                     columns: [],
-                    execution_time: 0
+                    execution_time: 0,
+                    executedQuery: `IMPORT ${file.name}`
                   });
                 } catch (error: any) {
-                  setError(error.response?.data?.detail || 'Failed to import CSV with custom SQL');
+                  setError(error.response?.data?.detail || 'Failed to import file with custom SQL');
                   return;
                 }
               }
