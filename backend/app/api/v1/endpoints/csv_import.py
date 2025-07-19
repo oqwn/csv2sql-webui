@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import pandas as pd
 import io
 import json
+import re
 
 from app.db.session import get_db
 from app.services.csv_importer import import_csv_to_table, detect_column_type
@@ -121,32 +122,53 @@ async def preview_csv(
         
         # Generate CREATE TABLE SQL
         column_definitions = []
-        for col in columns:
+        has_id_column = False
+        id_column_index = -1
+        
+        for idx, col in enumerate(columns):
             col_name = col["name"]  # This is already sanitized
             col_type = col["suggested_type"]
             
-            # Build column definition
-            col_def = f'"{col_name}" {col_type}'
-            
-            # Add NOT NULL if column has no nulls
-            if not col["nullable"]:
-                col_def += " NOT NULL"
-            
-            # Add UNIQUE if all values are unique
-            if col["unique_values"] == len(df) and len(df) > 1:
-                col_def += " UNIQUE"
+            # Check if this is an id column
+            if col_name.lower() == 'id':
+                has_id_column = True
+                id_column_index = idx
+                # Check if the id column contains sequential integers
+                try:
+                    id_series = df[col["original_name"]].dropna()
+                    if len(id_series) > 0:
+                        # Check if values are numeric and sequential
+                        id_values = pd.to_numeric(id_series, errors='coerce')
+                        if not id_values.isna().any():
+                            # If it's already a proper sequence, use it as primary key
+                            col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+                        else:
+                            # If not numeric, we'll need to generate our own id
+                            has_id_column = False
+                            col_def = f'"{col_name}_original" {col_type}'
+                    else:
+                        col_def = f'"{col_name}" {col_type} PRIMARY KEY'
+                except:
+                    # If any error, treat as regular column
+                    has_id_column = False
+                    col_def = f'"{col_name}_original" {col_type}'
+            else:
+                # Build regular column definition
+                col_def = f'"{col_name}" {col_type}'
+                
+                # Add NOT NULL if column has no nulls
+                if not col["nullable"]:
+                    col_def += " NOT NULL"
+                
+                # Add UNIQUE if all values are unique (but not for id column)
+                if col["unique_values"] == len(df) and len(df) > 1 and col_name.lower() != 'id':
+                    col_def += " UNIQUE"
             
             column_definitions.append(col_def)
         
-        # Add ID column if doesn't exist
-        if 'id' not in [c["name"].lower() for c in columns]:
+        # Add auto-generated ID column if no suitable id exists
+        if not has_id_column:
             column_definitions.insert(0, '"id" SERIAL PRIMARY KEY')
-        elif not any('PRIMARY KEY' in cd for cd in column_definitions):
-            # If id exists but no primary key, make id the primary key
-            for i, cd in enumerate(column_definitions):
-                if cd.startswith('"id"'):
-                    column_definitions[i] = cd.replace('"id" INTEGER', '"id" INTEGER PRIMARY KEY')
-                    break
         
         create_table_sql = f"""CREATE TABLE IF NOT EXISTS "{suggested_table_name}" (
     {',\n    '.join(column_definitions)}
@@ -278,8 +300,30 @@ async def import_csv_with_sql(
         content = await file.read()
         df = pd.read_csv(io.BytesIO(content))
         
-        # Clean column names to match the table (lowercase, replace special chars)
-        df.columns = [col.lower().replace(' ', '_').replace('-', '_') for col in df.columns]
+        # Parse the CREATE TABLE SQL to understand column mappings
+        # Extract column names from the SQL
+        import re
+        column_pattern = r'"([^"]+)"\s+\w+'
+        sql_columns = re.findall(column_pattern, create_table_sql)
+        
+        # Clean and map CSV columns to SQL columns
+        csv_to_sql_mapping = {}
+        for csv_col in df.columns:
+            sanitized = csv_col.lower().replace(' ', '_').replace('-', '_').replace('.', '_')
+            sanitized = ''.join(c for c in sanitized if c.isalnum() or c == '_')
+            
+            # Handle special case where id column was renamed to id_original
+            if sanitized == 'id' and 'id_original' in sql_columns and 'id' not in sql_columns:
+                csv_to_sql_mapping[csv_col] = 'id_original'
+            elif sanitized in sql_columns:
+                csv_to_sql_mapping[csv_col] = sanitized
+        
+        # Rename dataframe columns to match SQL table
+        df = df.rename(columns=csv_to_sql_mapping)
+        
+        # Only keep columns that exist in the SQL table (excluding auto-generated id)
+        columns_to_keep = [col for col in df.columns if col in sql_columns]
+        df = df[columns_to_keep]
         
         # Import data to the table
         df.to_sql(

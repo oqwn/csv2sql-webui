@@ -87,11 +87,40 @@ def create_table_from_dataframe(
     """
     # Build CREATE TABLE statement
     columns = []
+    has_id_column = False
+    
     for col in df.columns:
         # Sanitize column name
         safe_col = col.strip().replace(' ', '_').replace('-', '_').lower()
+        safe_col = ''.join(c for c in safe_col if c.isalnum() or c == '_')
         sql_type = column_types.get(col, "TEXT")
-        columns.append(f'"{safe_col}" {sql_type}')
+        
+        # Check if this is an id column
+        if safe_col == 'id':
+            # Check if the id column contains valid integers
+            try:
+                id_series = df[col].dropna()
+                if len(id_series) > 0:
+                    id_values = pd.to_numeric(id_series, errors='coerce')
+                    if not id_values.isna().any():
+                        # Valid numeric id column, use as primary key
+                        columns.append(f'"{safe_col}" {sql_type} PRIMARY KEY')
+                        has_id_column = True
+                    else:
+                        # Invalid id column, rename it
+                        columns.append(f'"{safe_col}_original" {sql_type}')
+                else:
+                    columns.append(f'"{safe_col}" {sql_type} PRIMARY KEY')
+                    has_id_column = True
+            except:
+                # If any error, rename the column
+                columns.append(f'"{safe_col}_original" {sql_type}')
+        else:
+            columns.append(f'"{safe_col}" {sql_type}')
+    
+    # Add auto-generated ID if no valid id column exists
+    if not has_id_column:
+        columns.insert(0, '"id" SERIAL PRIMARY KEY')
     
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS "{table_name}" (
@@ -149,8 +178,37 @@ async def import_csv_to_table(
             elif pandas_dtype == "datetime64[ns]":
                 df[col] = pd.to_datetime(df[col], errors='coerce', infer_datetime_format=True)
     
-    # Rename columns to be SQL-safe
-    df.columns = [col.strip().replace(' ', '_').replace('-', '_').lower() for col in df.columns]
+    # Keep track of original column names
+    original_columns = df.columns.tolist()
+    
+    # Rename columns to be SQL-safe and handle id column
+    new_columns = []
+    has_valid_id = False
+    
+    for col in df.columns:
+        safe_col = col.strip().replace(' ', '_').replace('-', '_').lower()
+        safe_col = ''.join(c for c in safe_col if c.isalnum() or c == '_')
+        
+        if safe_col == 'id':
+            # Check if id column has valid numeric values
+            try:
+                id_series = df[col].dropna()
+                if len(id_series) > 0:
+                    id_values = pd.to_numeric(id_series, errors='coerce')
+                    if not id_values.isna().any():
+                        has_valid_id = True
+                        new_columns.append('id')
+                    else:
+                        new_columns.append('id_original')
+                else:
+                    has_valid_id = True
+                    new_columns.append('id')
+            except:
+                new_columns.append('id_original')
+        else:
+            new_columns.append(safe_col)
+    
+    df.columns = new_columns
     
     if create_table and detect_types:
         # Create table with proper types
