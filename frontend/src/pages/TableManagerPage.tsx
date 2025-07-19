@@ -31,6 +31,9 @@ import {
   CardContent,
   Divider,
   InputAdornment,
+  Skeleton,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -39,30 +42,35 @@ import {
   Refresh as RefreshIcon,
   Search as SearchIcon,
   TableChart as TableChartIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
-import { sqlAPI } from '../services/api';
-
-interface TableData {
-  columns: string[];
-  rows: any[][];
-  totalRows: number;
-}
+import { sqlAPI, tableAPI } from '../services/api';
 
 interface ColumnInfo {
   name: string;
   type: string;
   nullable: boolean;
   default: string | null;
-  isPrimary?: boolean;
+  is_primary?: boolean;
+  is_unique?: boolean;
+  foreign_key?: {
+    table: string;
+    column: string;
+  } | null;
+}
+
+interface TableInfo {
+  table_name: string;
+  columns: ColumnInfo[];
+  primary_key: string | null;
 }
 
 const TableManagerPage: React.FC = () => {
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
-  const [tableData, setTableData] = useState<TableData | null>(null);
-  const [columns, setColumns] = useState<ColumnInfo[]>([]);
+  const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
+  const [tableData, setTableData] = useState<any[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -71,14 +79,11 @@ const TableManagerPage: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   
-  // Edit state
-  const [editingRow, setEditingRow] = useState<number | null>(null);
-  const [editedData, setEditedData] = useState<Record<string, any>>({});
-  
   // Add/Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add');
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [editingRecord, setEditingRecord] = useState<any>(null);
   
   // Delete confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -93,14 +98,17 @@ const TableManagerPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadTableData = async () => {
-      if (selectedTable) {
-        await fetchTableData();
-        await fetchColumnInfo();
-      }
-    };
-    loadTableData();
-  }, [selectedTable, page, rowsPerPage]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (selectedTable) {
+      fetchTableInfo();
+      fetchTableData();
+    }
+  }, [selectedTable]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (selectedTable) {
+      fetchTableData();
+    }
+  }, [page, rowsPerPage, searchQuery, filterColumn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTables = async () => {
     try {
@@ -111,13 +119,14 @@ const TableManagerPage: React.FC = () => {
     }
   };
 
-  const fetchColumnInfo = async () => {
+  const fetchTableInfo = async () => {
     if (!selectedTable) return;
     try {
-      const response = await sqlAPI.getTableColumns(selectedTable);
-      setColumns(response.data.columns || []);
+      const response = await tableAPI.getTableInfo(selectedTable);
+      setTableInfo(response.data);
     } catch (err) {
-      console.error('Failed to fetch column info:', err);
+      console.error('Failed to fetch table info:', err);
+      setError('Failed to fetch table information');
     }
   };
 
@@ -128,142 +137,79 @@ const TableManagerPage: React.FC = () => {
     setError('');
     
     try {
-      let query = `SELECT * FROM "${selectedTable}"`;
-      
-      // Add search filter
-      if (searchQuery && filterColumn) {
-        query += ` WHERE "${filterColumn}" ILIKE '%${searchQuery}%'`;
-      }
-      
-      // Add pagination
-      query += ` LIMIT ${rowsPerPage} OFFSET ${page * rowsPerPage}`;
-      
-      const response = await sqlAPI.executeQuery(query);
-      
-      // Get total count
-      let countQuery = `SELECT COUNT(*) as total FROM "${selectedTable}"`;
-      if (searchQuery && filterColumn) {
-        countQuery += ` WHERE "${filterColumn}" ILIKE '%${searchQuery}%'`;
-      }
-      const countResponse = await sqlAPI.executeQuery(countQuery);
-      const totalRows = countResponse.data.rows[0][0];
-      
-      setTableData({
-        columns: response.data.columns,
-        rows: response.data.rows,
-        totalRows: totalRows,
+      const response = await tableAPI.getTableData({
+        table_name: selectedTable,
+        page: page,
+        page_size: rowsPerPage,
+        search_column: filterColumn || undefined,
+        search_value: searchQuery || undefined,
       });
+      
+      setTableData(response.data.rows);
+      setTotalRows(response.data.total_count);
+      
+      // Update table info primary key if not set
+      if (!tableInfo && response.data.primary_key) {
+        setTableInfo(prev => prev ? { ...prev, primary_key: response.data.primary_key } : null);
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to fetch table data');
+      setTableData([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleEdit = (rowIndex: number) => {
-    const row = tableData?.rows[rowIndex];
-    if (!row || !tableData) return;
-    
-    const rowData: Record<string, any> = {};
-    tableData.columns.forEach((col, idx) => {
-      rowData[col] = row[idx];
-    });
-    
-    setEditingRow(rowIndex);
-    setEditedData(rowData);
-  };
-
-  const handleSaveEdit = async () => {
-    if (editingRow === null || !tableData) return;
-    
-    setLoading(true);
-    try {
-      // Build UPDATE query
-      const setClauses = Object.entries(editedData)
-        .map(([col, val]) => {
-          if (val === null) return `"${col}" = NULL`;
-          if (typeof val === 'string') return `"${col}" = '${val.replace(/'/g, "''")}'`;
-          return `"${col}" = ${val}`;
-        })
-        .join(', ');
-      
-      // Assuming first column is primary key
-      const primaryKey = tableData.columns[0];
-      const primaryValue = tableData.rows[editingRow][0];
-      const whereClause = typeof primaryValue === 'string' 
-        ? `"${primaryKey}" = '${primaryValue}'`
-        : `"${primaryKey}" = ${primaryValue}`;
-      
-      const updateQuery = `UPDATE "${selectedTable}" SET ${setClauses} WHERE ${whereClause}`;
-      
-      await sqlAPI.executeQuery(updateQuery);
-      setSuccess('Record updated successfully');
-      setEditingRow(null);
-      fetchTableData();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to update record');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingRow(null);
-    setEditedData({});
   };
 
   const handleAdd = () => {
     const newRecord: Record<string, any> = {};
-    columns.forEach(col => {
-      newRecord[col.name] = col.default || '';
+    tableInfo?.columns.forEach(col => {
+      if (!col.is_primary || col.type.toLowerCase().includes('serial')) {
+        newRecord[col.name] = col.default || '';
+      }
     });
     setFormData(newRecord);
+    setEditingRecord(null);
     setDialogMode('add');
     setDialogOpen(true);
   };
 
+  const handleEdit = (record: any) => {
+    const editData = { ...record };
+    // Remove primary key if it's auto-generated
+    const primaryKey = tableInfo?.primary_key;
+    if (primaryKey && tableInfo?.columns.find(col => col.name === primaryKey && col.type.toLowerCase().includes('serial'))) {
+      delete editData[primaryKey];
+    }
+    
+    setFormData(editData);
+    setEditingRecord(record);
+    setDialogMode('edit');
+    setDialogOpen(true);
+  };
 
   const handleSaveDialog = async () => {
     setLoading(true);
     try {
       if (dialogMode === 'add') {
-        // Build INSERT query
-        const columns = Object.keys(formData).filter(col => formData[col] !== '');
-        const values = columns.map(col => {
-          const val = formData[col];
-          if (val === null || val === 'NULL') return 'NULL';
-          if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
-          return val;
-        });
-        
-        const insertQuery = `INSERT INTO "${selectedTable}" ("${columns.join('", "')}") VALUES (${values.join(', ')})`;
-        await sqlAPI.executeQuery(insertQuery);
+        await tableAPI.createRecord(selectedTable, formData);
         setSuccess('Record added successfully');
       } else {
-        // Build UPDATE query
-        const setClauses = Object.entries(formData)
-          .filter(([_, val]) => val !== '')
-          .map(([col, val]) => {
-            if (val === null || val === 'NULL') return `"${col}" = NULL`;
-            if (typeof val === 'string') return `"${col}" = '${val.replace(/'/g, "''")}'`;
-            return `"${col}" = ${val}`;
-          })
-          .join(', ');
+        const primaryKey = tableInfo?.primary_key;
+        if (!primaryKey || !editingRecord) {
+          throw new Error('Primary key not found');
+        }
         
-        // Assuming first column is primary key
-        const primaryKey = tableData?.columns[0];
-        const primaryValue = formData[primaryKey!];
-        const whereClause = typeof primaryValue === 'string' 
-          ? `"${primaryKey}" = '${primaryValue}'`
-          : `"${primaryKey}" = ${primaryValue}`;
-        
-        const updateQuery = `UPDATE "${selectedTable}" SET ${setClauses} WHERE ${whereClause}`;
-        await sqlAPI.executeQuery(updateQuery);
+        await tableAPI.updateRecord(
+          selectedTable,
+          primaryKey,
+          editingRecord[primaryKey],
+          formData
+        );
         setSuccess('Record updated successfully');
       }
       
       setDialogOpen(false);
-      fetchTableData();
+      await fetchTableData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to save record');
     } finally {
@@ -271,29 +217,25 @@ const TableManagerPage: React.FC = () => {
     }
   };
 
-  const handleDelete = (row: any[]) => {
-    setDeleteTarget(row);
+  const handleDelete = (record: any) => {
+    setDeleteTarget(record);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget || !tableData) return;
+    if (!deleteTarget || !tableInfo?.primary_key) return;
     
     setLoading(true);
     try {
-      // Assuming first column is primary key
-      const primaryKey = tableData.columns[0];
-      const primaryValue = deleteTarget[0];
-      const whereClause = typeof primaryValue === 'string' 
-        ? `"${primaryKey}" = '${primaryValue}'`
-        : `"${primaryKey}" = ${primaryValue}`;
-      
-      const deleteQuery = `DELETE FROM "${selectedTable}" WHERE ${whereClause}`;
-      await sqlAPI.executeQuery(deleteQuery);
+      await tableAPI.deleteRecord(
+        selectedTable,
+        tableInfo.primary_key,
+        deleteTarget[tableInfo.primary_key]
+      );
       
       setSuccess('Record deleted successfully');
       setDeleteDialogOpen(false);
-      fetchTableData();
+      await fetchTableData();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete record');
     } finally {
@@ -310,30 +252,96 @@ const TableManagerPage: React.FC = () => {
     setPage(0);
   };
 
-  const getColumnType = (columnName: string): string => {
-    const column = columns.find(col => col.name === columnName);
-    return column?.type || 'text';
-  };
-
   const renderCellValue = (value: any, columnName: string) => {
-    if (value === null) {
+    if (value === null || value === undefined) {
       return <Chip label="NULL" size="small" variant="outlined" />;
     }
     
-    const type = getColumnType(columnName);
-    if (type.includes('bool')) {
+    const column = tableInfo?.columns.find(col => col.name === columnName);
+    const type = column?.type || '';
+    
+    if (type.toLowerCase().includes('bool')) {
       return <Chip label={value ? 'TRUE' : 'FALSE'} size="small" color={value ? 'success' : 'default'} />;
     }
     
-    if (type.includes('json')) {
+    if (type.toLowerCase().includes('json')) {
       return (
-        <Tooltip title={<pre>{JSON.stringify(value, null, 2)}</pre>}>
-          <Chip label="JSON" size="small" variant="outlined" />
+        <Tooltip title={<pre style={{ margin: 0 }}>{JSON.stringify(value, null, 2)}</pre>}>
+          <Chip label="JSON" size="small" variant="outlined" icon={<InfoIcon />} />
         </Tooltip>
       );
     }
     
+    if (type.toLowerCase().includes('timestamp') || type.toLowerCase().includes('date')) {
+      try {
+        return new Date(value).toLocaleString();
+      } catch {
+        return String(value);
+      }
+    }
+    
     return String(value);
+  };
+
+  const getFieldType = (columnType: string): string => {
+    const type = columnType.toLowerCase();
+    if (type.includes('int') || type.includes('serial')) return 'number';
+    if (type.includes('bool')) return 'checkbox';
+    if (type.includes('date') && !type.includes('timestamp')) return 'date';
+    if (type.includes('timestamp')) return 'datetime-local';
+    if (type.includes('text') || type.includes('json')) return 'textarea';
+    return 'text';
+  };
+
+  const renderFormField = (column: ColumnInfo) => {
+    const fieldType = getFieldType(column.type);
+    const value = formData[column.name] ?? '';
+    
+    if (fieldType === 'checkbox') {
+      return (
+        <FormControl fullWidth>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={value === true || value === 't' || value === 'true'}
+                onChange={(e) => setFormData({ ...formData, [column.name]: e.target.checked })}
+              />
+            }
+            label={column.name}
+          />
+        </FormControl>
+      );
+    }
+    
+    if (fieldType === 'textarea') {
+      return (
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          label={column.name}
+          value={value}
+          onChange={(e) => setFormData({ ...formData, [column.name]: e.target.value })}
+          helperText={`Type: ${column.type}${column.nullable ? ' (Optional)' : ' (Required)'}`}
+        />
+      );
+    }
+    
+    return (
+      <TextField
+        fullWidth
+        type={fieldType}
+        label={column.name}
+        value={value}
+        onChange={(e) => setFormData({ ...formData, [column.name]: e.target.value })}
+        helperText={`Type: ${column.type}${column.nullable ? ' (Optional)' : ' (Required)'}`}
+        InputLabelProps={
+          fieldType === 'date' || fieldType === 'datetime-local'
+            ? { shrink: true }
+            : undefined
+        }
+      />
+    );
   };
 
   return (
@@ -375,6 +383,8 @@ const TableManagerPage: React.FC = () => {
                     onClick={() => {
                       setSelectedTable(table);
                       setPage(0);
+                      setSearchQuery('');
+                      setFilterColumn('');
                     }}
                     sx={{ justifyContent: 'flex-start' }}
                   >
@@ -393,15 +403,24 @@ const TableManagerPage: React.FC = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5">
                   {selectedTable}
+                  {tableInfo?.primary_key && (
+                    <Chip 
+                      label={`PK: ${tableInfo.primary_key}`} 
+                      size="small" 
+                      sx={{ ml: 2 }} 
+                      color="primary" 
+                      variant="outlined" 
+                    />
+                  )}
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <TextField
                     size="small"
                     placeholder="Search..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') fetchTableData();
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(0);
                     }}
                     InputProps={{
                       startAdornment: (
@@ -411,15 +430,18 @@ const TableManagerPage: React.FC = () => {
                       ),
                     }}
                   />
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
                     <InputLabel>Filter by</InputLabel>
                     <Select
                       value={filterColumn}
                       label="Filter by"
-                      onChange={(e) => setFilterColumn(e.target.value)}
+                      onChange={(e) => {
+                        setFilterColumn(e.target.value);
+                        setPage(0);
+                      }}
                     >
-                      <MenuItem value="">None</MenuItem>
-                      {columns.map((col) => (
+                      <MenuItem value="">All columns</MenuItem>
+                      {tableInfo?.columns.map((col) => (
                         <MenuItem key={col.name} value={col.name}>
                           {col.name}
                         </MenuItem>
@@ -438,24 +460,31 @@ const TableManagerPage: React.FC = () => {
               </Box>
 
               {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                  <CircularProgress />
+                <Box>
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} height={60} sx={{ mb: 1 }} />
+                  ))}
                 </Box>
               ) : error ? (
                 <Alert severity="error" sx={{ mb: 2 }}>
                   {error}
                 </Alert>
-              ) : tableData ? (
+              ) : tableData.length > 0 ? (
                 <>
                   <TableContainer>
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          {tableData.columns.map((column, idx) => (
-                            <TableCell key={idx} sx={{ fontWeight: 'bold' }}>
-                              {column}
-                              {columns.find(c => c.name === column)?.isPrimary && (
+                          {tableInfo?.columns.map((column) => (
+                            <TableCell key={column.name} sx={{ fontWeight: 'bold' }}>
+                              {column.name}
+                              {column.is_primary && (
                                 <Chip label="PK" size="small" sx={{ ml: 1 }} />
+                              )}
+                              {column.foreign_key && (
+                                <Tooltip title={`References ${column.foreign_key.table}.${column.foreign_key.column}`}>
+                                  <Chip label="FK" size="small" sx={{ ml: 1 }} color="secondary" />
+                                </Tooltip>
                               )}
                             </TableCell>
                           ))}
@@ -465,62 +494,32 @@ const TableManagerPage: React.FC = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {tableData.rows.map((row, rowIndex) => (
+                        {tableData.map((row, rowIndex) => (
                           <TableRow key={rowIndex} hover>
-                            {row.map((cell, cellIndex) => (
-                              <TableCell key={cellIndex}>
-                                {editingRow === rowIndex ? (
-                                  <TextField
-                                    size="small"
-                                    value={editedData[tableData.columns[cellIndex]] ?? ''}
-                                    onChange={(e) => {
-                                      setEditedData({
-                                        ...editedData,
-                                        [tableData.columns[cellIndex]]: e.target.value,
-                                      });
-                                    }}
-                                  />
-                                ) : (
-                                  renderCellValue(cell, tableData.columns[cellIndex])
-                                )}
+                            {tableInfo?.columns.map((column) => (
+                              <TableCell key={column.name}>
+                                {renderCellValue(row[column.name], column.name)}
                               </TableCell>
                             ))}
                             <TableCell align="right">
-                              {editingRow === rowIndex ? (
-                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                  <IconButton
-                                    size="small"
-                                    color="success"
-                                    onClick={handleSaveEdit}
-                                  >
-                                    <SaveIcon />
-                                  </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={handleCancelEdit}
-                                  >
-                                    <CancelIcon />
-                                  </IconButton>
-                                </Box>
-                              ) : (
-                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
-                                    onClick={() => handleEdit(rowIndex)}
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleDelete(row)}
-                                  >
-                                    <DeleteIcon />
-                                  </IconButton>
-                                </Box>
-                              )}
+                              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => handleEdit(row)}
+                                  title="Edit record"
+                                >
+                                  <EditIcon />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleDelete(row)}
+                                  title="Delete record"
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -530,7 +529,7 @@ const TableManagerPage: React.FC = () => {
                   <TablePagination
                     rowsPerPageOptions={[10, 25, 50, 100]}
                     component="div"
-                    count={tableData.totalRows}
+                    count={totalRows}
                     rowsPerPage={rowsPerPage}
                     page={page}
                     onPageChange={handleChangePage}
@@ -555,37 +554,55 @@ const TableManagerPage: React.FC = () => {
       </Grid>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog 
+        open={dialogOpen} 
+        onClose={() => setDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: { maxHeight: '90vh' }
+        }}
+      >
         <DialogTitle>
           {dialogMode === 'add' ? 'Add New Record' : 'Edit Record'}
+          {tableInfo?.primary_key && editingRecord && dialogMode === 'edit' && (
+            <Chip 
+              label={`${tableInfo.primary_key}: ${editingRecord[tableInfo.primary_key]}`} 
+              size="small" 
+              sx={{ ml: 2 }} 
+              color="primary" 
+            />
+          )}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            {columns.map((col) => (
-              <Grid item xs={12} key={col.name}>
-                <TextField
-                  fullWidth
-                  label={`${col.name} (${col.type})`}
-                  value={formData[col.name] ?? ''}
-                  onChange={(e) => {
-                    setFormData({
-                      ...formData,
-                      [col.name]: e.target.value,
-                    });
-                  }}
-                  helperText={
-                    col.nullable ? 'Nullable' : 'Required'
-                  }
-                  disabled={col.isPrimary && dialogMode === 'edit'}
-                />
-              </Grid>
-            ))}
+            {tableInfo?.columns
+              .filter(col => {
+                // Skip primary key if it's auto-generated (SERIAL)
+                if (col.is_primary && col.type.toLowerCase().includes('serial')) {
+                  return false;
+                }
+                // In edit mode, skip primary key
+                if (dialogMode === 'edit' && col.is_primary) {
+                  return false;
+                }
+                return true;
+              })
+              .map((column) => (
+                <Grid item xs={12} sm={6} key={column.name}>
+                  {renderFormField(column)}
+                </Grid>
+              ))}
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveDialog}>
-            Save
+          <Button 
+            variant="contained" 
+            onClick={handleSaveDialog}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : 'Save'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -597,11 +614,21 @@ const TableManagerPage: React.FC = () => {
           <Typography>
             Are you sure you want to delete this record? This action cannot be undone.
           </Typography>
+          {tableInfo?.primary_key && deleteTarget && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              Deleting record with {tableInfo.primary_key}: {deleteTarget[tableInfo.primary_key]}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={confirmDelete}>
-            Delete
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={confirmDelete}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

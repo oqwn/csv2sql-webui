@@ -72,4 +72,32 @@ export const exportAPI = {
     }),
 };
 
+export const tableAPI = {
+  getTableData: (params: {
+    table_name: string;
+    page: number;
+    page_size: number;
+    search_column?: string;
+    search_value?: string;
+    order_by?: string;
+    order_direction?: 'ASC' | 'DESC';
+  }) => api.post('/tables/data', params),
+  
+  createRecord: (table_name: string, data: Record<string, any>) => 
+    api.post('/tables/record', { table_name, data }),
+  
+  updateRecord: (table_name: string, primary_key_column: string, primary_key_value: any, data: Record<string, any>) =>
+    api.put('/tables/record', { table_name, primary_key_column, primary_key_value, data }),
+  
+  deleteRecord: (table_name: string, primary_key_column: string, primary_key_value: any) =>
+    api.request({
+      method: 'DELETE',
+      url: '/tables/record',
+      data: { table_name, primary_key_column, primary_key_value }
+    }),
+  
+  getTableInfo: (table_name: string) =>
+    api.get(`/tables/table/${table_name}/info`),
+};
+
 export default api;
