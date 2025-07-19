@@ -89,6 +89,12 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
       }
       
       const data = response.data;
+      
+      // Validate response data structure
+      if (!data || !data.columns || !data.sample_data || !data.create_table_sql) {
+        throw new Error('Invalid response structure from preview API');
+      }
+      
       setPreview({
         columns: data.columns,
         sample_data: data.sample_data,
@@ -132,7 +138,7 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
-        ) : preview ? (
+        ) : preview && preview.columns && Array.isArray(preview.columns) && preview.sample_data && Array.isArray(preview.sample_data) ? (
           <>
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
@@ -246,6 +252,10 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
               </TableContainer>
             </TabPanel>
           </>
+        ) : preview ? (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Preview data is incomplete or malformed. Please try again or contact support.
+          </Alert>
         ) : null}
       </DialogContent>
       <DialogActions>
