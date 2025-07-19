@@ -304,10 +304,10 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
                             <TableHead>
                               <TableRow>
                                 {filePreview.preview.columns.map((col: any) => (
-                                  <TableCell key={col.name}>
-                                    {col.name}
+                                  <TableCell key={col?.name || 'unnamed'}>
+                                    {col?.name || 'Column'}
                                     <Typography variant="caption" display="block" color="text.secondary">
-                                      {col.suggested_type}
+                                      {col?.suggested_type || 'Unknown'}
                                     </Typography>
                                   </TableCell>
                                 ))}
@@ -317,11 +317,11 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
                               {filePreview.preview.sample_data.map((row: any, idx: number) => (
                                 <TableRow key={idx}>
                                   {filePreview.preview.columns.map((col: any) => (
-                                    <TableCell key={col.name}>
-                                      {row[col.name] === null ? (
+                                    <TableCell key={col?.name || 'unnamed'}>
+                                      {row[col?.name] === null ? (
                                         <Chip label="NULL" size="small" variant="outlined" />
                                       ) : (
-                                        String(row[col.name])
+                                        String(row[col?.name || 'unknown'])
                                       )}
                                     </TableCell>
                                   ))}
@@ -347,26 +347,30 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
                             </TableHead>
                             <TableBody>
                               {filePreview.preview.columns.map((col: any) => (
-                                <TableRow key={col.name}>
-                                  <TableCell>{col.name}</TableCell>
+                                <TableRow key={col?.name || 'unnamed'}>
+                                  <TableCell>{col?.name || 'Column'}</TableCell>
                                   <TableCell>
-                                    <Chip label={col.suggested_type} size="small" />
+                                    <Chip label={col?.suggested_type || 'Unknown'} size="small" />
                                   </TableCell>
                                   <TableCell align="center">
-                                    {col.nullable ? '✓' : '✗'}
+                                    {col?.nullable ? '✓' : '✗'}
                                   </TableCell>
-                                  <TableCell align="center">{col.unique_values}</TableCell>
-                                  <TableCell align="center">{col.null_count}</TableCell>
+                                  <TableCell align="center">{col?.unique_values || 0}</TableCell>
+                                  <TableCell align="center">{col?.null_count || 0}</TableCell>
                                   <TableCell>
                                     <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                      {col.sample_values.slice(0, 3).map((val: any, i: number) => (
+                                      {col.sample_values && Array.isArray(col.sample_values) ? col.sample_values.slice(0, 3).map((val: any, i: number) => (
                                         <Chip
                                           key={i}
                                           label={String(val)}
                                           size="small"
                                           variant="outlined"
                                         />
-                                      ))}
+                                      )) : (
+                                        <Typography variant="caption" color="text.secondary">
+                                          No samples available
+                                        </Typography>
+                                      )}
                                     </Box>
                                   </TableCell>
                                 </TableRow>

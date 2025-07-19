@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from openpyxl import load_workbook
 
-from .csv_importer import detect_column_type, create_table_from_dataframe
+from .csv_importer import detect_column_type, create_table_from_dataframe, generate_create_table_sql
 
 
 def get_excel_sheets(file_content: bytes) -> List[str]:
@@ -205,7 +205,7 @@ async def import_excel_all_sheets(
 
 def preview_excel_data(file_content: bytes, sheet_name: Optional[str] = None, rows: int = 10) -> dict:
     """
-    Preview Excel file data without importing
+    Preview Excel file data without importing - matches CSV preview format
     """
     sheets = get_excel_sheets(file_content)
     
@@ -220,20 +220,45 @@ def preview_excel_data(file_content: bytes, sheet_name: Optional[str] = None, ro
             detail=f"Sheet '{selected_sheet}' not found. Available sheets: {', '.join(sheets)}"
         )
     
-    # Read first few rows
-    df = pd.read_excel(io.BytesIO(file_content), sheet_name=selected_sheet, nrows=rows, engine='openpyxl')
+    # Read the full file to get accurate row count, but limit preview
+    df_full = pd.read_excel(io.BytesIO(file_content), sheet_name=selected_sheet, engine='openpyxl')
+    df = df_full.head(rows)
     
-    # Detect column types
-    column_types = {}
-    for col in df.columns:
-        sql_type, _ = detect_column_type(df[col])
-        column_types[col] = sql_type
+    # Build columns info in CSV preview format
+    columns = []
+    column_types_dict = {}
+    
+    for col in df_full.columns:
+        sql_type, _ = detect_column_type(df_full[col])
+        column_types_dict[col] = sql_type
+        
+        # Sanitize column name for SQL
+        sanitized_name = str(col).strip().replace(' ', '_').replace('-', '_').lower()
+        series = df_full[col]
+        
+        columns.append({
+            "name": sanitized_name,
+            "original_name": str(col),
+            "suggested_type": sql_type,
+            "nullable": bool(series.isnull().any()),
+            "unique_values": int(len(series.unique())),
+            "null_count": int(series.isnull().sum()),
+            "sample_values": [str(v) for v in series.dropna().head(5).tolist()] if len(series.dropna()) > 0 else []
+        })
+    
+    # Generate CREATE TABLE SQL
+    suggested_table_name = f"sheet_{selected_sheet.lower().replace(' ', '_')}"
+    create_table_sql, _, _ = generate_create_table_sql(df_full, suggested_table_name, column_types_dict)
+    
+    # Get sample data
+    sample_data = df.to_dict('records')
     
     return {
+        "columns": columns,
+        "sample_data": sample_data,
+        "total_rows": len(df_full),
+        "create_table_sql": create_table_sql,
+        "suggested_table_name": suggested_table_name,
         "sheet_name": selected_sheet,
-        "available_sheets": sheets,
-        "columns": list(df.columns),
-        "column_types": column_types,
-        "preview_data": df.to_dict('records'),
-        "total_rows": len(df)
+        "available_sheets": sheets
     }
