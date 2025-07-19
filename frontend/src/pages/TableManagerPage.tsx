@@ -191,6 +191,21 @@ const TableManagerPage: React.FC = () => {
     console.log('Table info:', tableInfo);
     
     const editData = { ...record };
+    
+    // Format datetime values for HTML5 datetime-local input
+    tableInfo?.columns.forEach(column => {
+      const value = editData[column.name];
+      if (value && column.type.toLowerCase().includes('timestamp')) {
+        // Convert from database format (with microseconds) to HTML5 datetime-local format
+        // HTML5 datetime-local expects: yyyy-MM-ddThh:mm or yyyy-MM-ddThh:mm:ss or yyyy-MM-ddThh:mm:ss.SSS
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          // Format to yyyy-MM-ddThh:mm:ss.SSS (truncate microseconds to milliseconds)
+          editData[column.name] = date.toISOString().slice(0, 23);
+        }
+      }
+    });
+    
     // Remove primary key if it's auto-generated
     const primaryKey = tableInfo?.primary_key;
     const primaryKeyColumn = tableInfo?.columns.find(col => col.name === primaryKey);
