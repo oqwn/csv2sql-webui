@@ -630,7 +630,31 @@ const SQLEditorPage: React.FC = () => {
       // Handle single file import with custom table name
       if (isExcel && (!importTableName.trim() || excelSheets.length > 0)) {
         const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
-        await importSingleFile(file, tableName);
+        
+        try {
+          const response = await importSingleFile(file, tableName);
+          
+          // Show success result
+          let message = response.data.message || 'Excel file imported successfully';
+          if (response.data.row_count && response.data.column_count) {
+            message += `\n\nRows imported: ${response.data.row_count}`;
+            message += `\nColumns: ${response.data.column_count}`;
+            message += `\nTable: ${response.data.table_name || tableName}`;
+          }
+          
+          setResult({
+            columns: ['Status'],
+            rows: [[message]],
+            row_count: response.data.row_count || 0,
+            execution_time: 0,
+            executedQuery: `IMPORT ${file.name}`
+          });
+          
+          clearFileQueue();
+          await fetchTables();
+        } catch (err: any) {
+          setError(err.response?.data?.detail || 'Failed to import Excel file');
+        }
         return;
       }
     }
