@@ -315,6 +315,7 @@ async def import_csv_batch(
     """
     results = []
     errors = []
+    used_table_names = set()
     
     for file in files:
         if not file.filename or not file.filename.endswith('.csv'):
@@ -325,8 +326,26 @@ async def import_csv_batch(
             continue
         
         try:
-            # Generate table name from filename
-            table_name = file.filename.replace('.csv', '').lower().replace(' ', '_').replace('-', '_')
+            # Generate table name from filename with better sanitization
+            table_name = file.filename.replace('.csv', '').lower()
+            # Replace all non-alphanumeric characters with underscores
+            table_name = ''.join(c if c.isalnum() else '_' for c in table_name)
+            # Remove leading digits and underscores
+            table_name = table_name.lstrip('0123456789_')
+            # Ensure table name is not empty
+            if not table_name:
+                table_name = f"imported_table_{len(results) + 1}"
+            # Ensure table name doesn't start with a digit
+            if table_name[0].isdigit():
+                table_name = f"table_{table_name}"
+            
+            # Ensure unique table name
+            original_table_name = table_name
+            counter = 1
+            while table_name in used_table_names:
+                table_name = f"{original_table_name}_{counter}"
+                counter += 1
+            used_table_names.add(table_name)
             
             result = await import_csv_to_table(
                 db=db,
@@ -345,10 +364,21 @@ async def import_csv_batch(
             })
             
         except Exception as e:
+            # Log the full error for debugging
+            import traceback
+            full_error = f"{str(e)}\n{traceback.format_exc()}"
+            print(f"Error importing {file.filename}: {full_error}")
+            
             errors.append({
                 "filename": file.filename,
                 "error": str(e)
             })
+            
+            # Rollback any partial transaction
+            try:
+                db.rollback()
+            except:
+                pass
     
     return {
         "total_files": len(files),

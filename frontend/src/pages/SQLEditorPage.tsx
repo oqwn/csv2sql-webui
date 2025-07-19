@@ -538,8 +538,12 @@ const SQLEditorPage: React.FC = () => {
     e.stopPropagation();
     setDragActive(false);
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      if (batchMode) {
+        handleMultipleFiles(Array.from(e.dataTransfer.files));
+      } else {
+        handleFile(e.dataTransfer.files[0]);
+      }
     }
   };
 
@@ -582,9 +586,31 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      if (batchMode) {
+        handleMultipleFiles(Array.from(e.target.files));
+      } else {
+        handleFile(e.target.files[0]);
+      }
     }
+  };
+
+  const handleMultipleFiles = (files: File[]) => {
+    const csvFiles = files.filter(file => 
+      file.name.endsWith('.csv') || file.type === 'text/csv'
+    );
+    
+    if (csvFiles.length === 0) {
+      setError('Please upload only CSV files for batch import');
+      return;
+    }
+    
+    if (csvFiles.length !== files.length) {
+      setError(`Only CSV files are supported for batch import. ${files.length - csvFiles.length} non-CSV files were excluded.`);
+    }
+    
+    setUploadFiles(csvFiles);
+    setError('');
   };
 
   const handleImport = async () => {
