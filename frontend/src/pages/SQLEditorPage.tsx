@@ -606,8 +606,8 @@ const SQLEditorPage: React.FC = () => {
       const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
       const isCSV = file.name.endsWith('.csv');
 
-      // For single CSV files with preview mode enabled, show the SQL preview dialog
-      if (isCSV && !useAutoDetect) {
+      // For single files with preview mode enabled, show the SQL preview dialog
+      if ((isCSV || isExcel) && !useAutoDetect) {
         setShowSQLPreviewDialog(true);
         return;
       }
@@ -676,7 +676,7 @@ const SQLEditorPage: React.FC = () => {
         const csvFiles = files.filter(f => f.name.endsWith('.csv'));
         const excelFiles = files.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
         
-        if (csvFiles.length > 0 && !useAutoDetect) {
+        if ((csvFiles.length > 0 || excelFiles.length > 0) && !useAutoDetect) {
           setShowBatchPreviewDialog(true);
           return;
         }
@@ -1902,7 +1902,7 @@ const SQLEditorPage: React.FC = () => {
           <CSVBatchPreviewDialog
             open={showBatchPreviewDialog}
             onClose={() => setShowBatchPreviewDialog(false)}
-            files={uploadFiles.filter(f => f.name.endsWith('.csv'))}
+            files={uploadFiles.filter(f => f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))}
             onImport={async () => {
               setShowBatchPreviewDialog(false);
               clearFileQueue();

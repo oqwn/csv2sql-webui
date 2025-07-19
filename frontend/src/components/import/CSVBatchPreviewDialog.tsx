@@ -103,7 +103,10 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
     // Load previews for each file
     for (let i = 0; i < files.length; i++) {
       try {
-        const response = await importAPI.previewCSV(files[i]);
+        const isExcel = files[i].name.endsWith('.xlsx') || files[i].name.endsWith('.xls');
+        const response = isExcel 
+          ? await importAPI.previewExcel(files[i])
+          : await importAPI.previewCSV(files[i]);
         setFilePreviews(prev => prev.map((fp, index) => 
           index === i 
             ? { 

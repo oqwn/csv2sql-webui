@@ -79,7 +79,15 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
     setLoading(true);
     setError('');
     try {
-      const response = await importAPI.previewCSV(file, tableName);
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      let response;
+      
+      if (isExcel) {
+        response = await importAPI.previewExcel(file);
+      } else {
+        response = await importAPI.previewCSV(file, tableName);
+      }
+      
       const data = response.data;
       setPreview({
         columns: data.columns,
@@ -89,7 +97,8 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
       setCreateTableSQL(data.create_table_sql);
       setEditedSQL(data.create_table_sql);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to preview CSV file');
+      const fileType = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? 'Excel' : 'CSV';
+      setError(err.response?.data?.detail || `Failed to preview ${fileType} file`);
     } finally {
       setLoading(false);
     }
@@ -112,7 +121,7 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle>
-        Import CSV - Preview & Edit Schema
+        Import File - Preview & Edit Schema
       </DialogTitle>
       <DialogContent>
         {loading ? (
