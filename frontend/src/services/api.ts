@@ -90,11 +90,7 @@ export const tableAPI = {
     api.put('/tables/record', { table_name, primary_key_column, primary_key_value, data }),
   
   deleteRecord: (table_name: string, primary_key_column: string, primary_key_value: any) =>
-    api.request({
-      method: 'DELETE',
-      url: '/tables/record',
-      data: { table_name, primary_key_column, primary_key_value }
-    }),
+    api.post('/tables/record/delete', { table_name, primary_key_column, primary_key_value }),
   
   getTableInfo: (table_name: string) =>
     api.get(`/tables/table/${table_name}/info`),

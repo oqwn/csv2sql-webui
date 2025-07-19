@@ -97,13 +97,16 @@ async def get_table_data(
         
         result = db.execute(text(query), data_params)
         
-        # Get column names
-        columns = list(result.keys())
+        # Fetch all rows first
+        rows_data = result.fetchall()
         
-        # Fetch rows
+        # Get column names
+        columns = list(result.keys()) if rows_data else []
+        
+        # Convert rows to dictionaries
         rows = []
-        for row in result:
-            rows.append(dict(row))
+        for row in rows_data:
+            rows.append(dict(row._mapping))
         
         # Get primary key
         primary_key = get_primary_key(db, request.table_name)
@@ -145,7 +148,7 @@ async def create_record(
         db.commit()
         
         # Return the created record
-        created_record = dict(result.fetchone())
+        created_record = dict(result.fetchone()._mapping)
         
         return {
             "message": "Record created successfully",
@@ -195,7 +198,7 @@ async def update_record(
         
         return {
             "message": "Record updated successfully",
-            "record": dict(updated_record)
+            "record": dict(updated_record._mapping)
         }
         
     except HTTPException:
@@ -205,7 +208,7 @@ async def update_record(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/record")
+@router.post("/record/delete")
 async def delete_record(
     request: RecordDeleteRequest,
     db: Session = Depends(get_db),
@@ -234,7 +237,7 @@ async def delete_record(
         
         return {
             "message": "Record deleted successfully",
-            "record": dict(deleted_record)
+            "record": dict(deleted_record._mapping)
         }
         
     except HTTPException:
