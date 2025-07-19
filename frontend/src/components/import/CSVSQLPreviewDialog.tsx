@@ -28,7 +28,7 @@ interface Props {
   onClose: () => void;
   file: File;
   tableName: string;
-  onImport: () => void;
+  onImport: (sql?: string) => void;
 }
 
 interface TabPanelProps {
@@ -63,7 +63,6 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
   const [tabValue, setTabValue] = useState(0);
   const [createTableSQL, setCreateTableSQL] = useState('');
   const [editedSQL, setEditedSQL] = useState('');
-  const [suggestedTableName, setSuggestedTableName] = useState('');
   const [preview, setPreview] = useState<{
     columns: Array<any>;
     sample_data: Array<any>;
@@ -89,7 +88,6 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
       });
       setCreateTableSQL(data.create_table_sql);
       setEditedSQL(data.create_table_sql);
-      setSuggestedTableName(data.suggested_table_name);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to preview CSV file');
     } finally {
@@ -101,12 +99,8 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
     setImporting(true);
     setError('');
     try {
-      // Extract table name from the SQL
-      const tableNameMatch = editedSQL.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([^"\s(]+)"?/i);
-      const extractedTableName = tableNameMatch ? tableNameMatch[1] : suggestedTableName;
-      
-      await importAPI.importCSVWithSQL(file, editedSQL, extractedTableName);
-      onImport();
+      // Always call onImport with the SQL - the parent component will decide what to do
+      onImport(editedSQL);
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to import CSV file');

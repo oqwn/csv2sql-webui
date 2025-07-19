@@ -43,6 +43,7 @@ import { SQLEditor } from '../components/sql/SQLEditor';
 import { generateBulkInsertSQL } from '../utils/dataGenerator';
 import CSVColumnConfigDialog from '../components/import/CSVColumnConfigDialog';
 import CSVSQLPreviewDialog from '../components/import/CSVSQLPreviewDialog';
+import CSVBatchPreviewDialog from '../components/import/CSVBatchPreviewDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -173,7 +174,6 @@ const SQLEditorPage: React.FC = () => {
   const [bulkRowCount, setBulkRowCount] = useState<100 | 1000 | 10000>(100);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [dragActive, setDragActive] = useState(false);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [importTableName, setImportTableName] = useState('');
   const [excelSheets, setExcelSheets] = useState<string[]>([]);
@@ -182,6 +182,7 @@ const SQLEditorPage: React.FC = () => {
   const [useAutoDetect, setUseAutoDetect] = useState(true);
   const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
   const [showSQLPreviewDialog, setShowSQLPreviewDialog] = useState(false);
+  const [showBatchPreviewDialog, setShowBatchPreviewDialog] = useState(false);
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, status: '' });
 
   const executeQuery = async (sqlQuery?: string) => {
@@ -585,7 +586,6 @@ const SQLEditorPage: React.FC = () => {
 
   const clearFileQueue = () => {
     setUploadFiles([]);
-    setUploadFile(null);
     setImportTableName('');
     setExcelSheets([]);
     setSelectedSheet('');
@@ -593,7 +593,7 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const handleImport = async () => {
-    const filesToProcess = uploadFiles.length > 0 ? uploadFiles : (uploadFile ? [uploadFile] : []);
+    const filesToProcess = uploadFiles;
     
     if (filesToProcess.length === 0) {
       setError('Please select files to import');
@@ -608,7 +608,6 @@ const SQLEditorPage: React.FC = () => {
 
       // For single CSV files with preview mode enabled, show the SQL preview dialog
       if (isCSV && !useAutoDetect) {
-        setUploadFile(file); // Set for the dialog
         setShowSQLPreviewDialog(true);
         return;
       }
@@ -621,7 +620,7 @@ const SQLEditorPage: React.FC = () => {
           if (response.data.sheets && response.data.sheets.length > 0) {
             setSelectedSheet(response.data.sheets[0]);
           }
-          setUploadFile(file); // Set for Excel handling
+          // Excel sheets loaded, user can now configure import
           return; // Let user select sheet
         } catch (err) {
           console.error('Failed to get Excel sheets:', err);
@@ -655,7 +654,7 @@ const SQLEditorPage: React.FC = () => {
         
         // If preview mode is enabled and there are CSV files, show batch preview
         if (!useAutoDetect && csvFiles.length > 0) {
-          setError('Batch preview mode not yet implemented. Please use auto-detect mode for multiple files or import CSV files one by one for preview.');
+          setShowBatchPreviewDialog(true);
           return;
         }
         
@@ -1788,16 +1787,16 @@ const SQLEditorPage: React.FC = () => {
       )}
       
       {/* CSV Column Configuration Dialog */}
-      {uploadFile && (
+      {uploadFiles.length > 0 && (
         <>
           <CSVColumnConfigDialog
             open={showColumnConfigDialog}
             onClose={() => setShowColumnConfigDialog(false)}
-            file={uploadFile}
-            tableName={importTableName}
+            file={uploadFiles[0]}
+            tableName={importTableName || uploadFiles[0]?.name.replace(/\.(csv|xlsx|xls)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}
             onImport={async () => {
               setShowColumnConfigDialog(false);
-              setUploadFile(null);
+              clearFileQueue();
               setImportTableName('');
               setUseAutoDetect(true);
               setError('');
@@ -1816,17 +1815,51 @@ const SQLEditorPage: React.FC = () => {
           <CSVSQLPreviewDialog
             open={showSQLPreviewDialog}
             onClose={() => setShowSQLPreviewDialog(false)}
-            file={uploadFile}
-            tableName={importTableName}
-            onImport={async () => {
+            file={uploadFiles[0]}
+            tableName={importTableName || uploadFiles[0]?.name.replace(/\.csv$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}
+            onImport={async (sql?: string) => {
+              if (sql) {
+                // Custom SQL provided - import with SQL
+                try {
+                  const tableNameMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([^"\s(]+)"?/i);
+                  const extractedTableName = tableNameMatch ? tableNameMatch[1] : (importTableName || uploadFiles[0]?.name.replace(/\.csv$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                  
+                  await importAPI.importCSVWithSQL(uploadFiles[0], sql, extractedTableName);
+                  
+                  setResult({
+                    message: 'CSV imported successfully with custom SQL',
+                    row_count: -1,
+                    columns: [],
+                    execution_time: 0
+                  });
+                } catch (error: any) {
+                  setError(error.response?.data?.detail || 'Failed to import CSV with custom SQL');
+                  return;
+                }
+              }
+              
               setShowSQLPreviewDialog(false);
-              setUploadFile(null);
+              clearFileQueue();
               setImportTableName('');
+              setUseAutoDetect(true);
+              setError('');
+              await fetchTables();
+            }}
+          />
+          
+          {/* CSV Batch Preview Dialog */}
+          <CSVBatchPreviewDialog
+            open={showBatchPreviewDialog}
+            onClose={() => setShowBatchPreviewDialog(false)}
+            files={uploadFiles.filter(f => f.name.endsWith('.csv'))}
+            onImport={async () => {
+              setShowBatchPreviewDialog(false);
+              clearFileQueue();
               setUseAutoDetect(true);
               setError('');
               // Show success in result
               setResult({
-                message: 'CSV imported successfully with custom SQL',
+                message: 'CSV files imported successfully with custom configurations',
                 row_count: -1,
                 columns: [],
                 execution_time: 0
