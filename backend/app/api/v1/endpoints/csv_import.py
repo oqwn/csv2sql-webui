@@ -9,7 +9,7 @@ import json
 import re
 
 from app.db.session import get_db
-from app.services.csv_importer import import_csv_to_table, detect_column_type
+from app.services.csv_importer import import_csv_to_table, detect_column_type, generate_create_table_sql
 
 router = APIRouter()
 
@@ -120,59 +120,13 @@ async def preview_csv(
         else:
             suggested_table_name = table_name or "imported_table"
         
-        # Generate CREATE TABLE SQL
-        column_definitions = []
-        has_id_column = False
-        id_column_index = -1
+        # Build column types dict for the shared function
+        column_types_dict = {}
+        for col in columns:
+            column_types_dict[col["original_name"]] = col["suggested_type"]
         
-        for idx, col in enumerate(columns):
-            col_name = col["name"]  # This is already sanitized
-            col_type = col["suggested_type"]
-            
-            # Check if this is an id column
-            if col_name.lower() == 'id':
-                has_id_column = True
-                id_column_index = idx
-                # Check if the id column contains sequential integers
-                try:
-                    id_series = df[col["original_name"]].dropna()
-                    if len(id_series) > 0:
-                        # Check if values are numeric and sequential
-                        id_values = pd.to_numeric(id_series, errors='coerce')
-                        if not id_values.isna().any():
-                            # If it's already a proper sequence, use it as primary key with BIGINT
-                            col_def = f'"{col_name}" BIGINT PRIMARY KEY'
-                        else:
-                            # If not numeric, we'll need to generate our own id
-                            has_id_column = False
-                            col_def = f'"{col_name}_original" {col_type}'
-                    else:
-                        col_def = f'"{col_name}" BIGINT PRIMARY KEY'
-                except:
-                    # If any error, treat as regular column
-                    has_id_column = False
-                    col_def = f'"{col_name}_original" {col_type}'
-            else:
-                # Build regular column definition
-                col_def = f'"{col_name}" {col_type}'
-                
-                # Add NOT NULL if column has no nulls
-                if not col["nullable"]:
-                    col_def += " NOT NULL"
-                
-                # Add UNIQUE if all values are unique (but not for id column)
-                if col["unique_values"] == len(df) and len(df) > 1 and col_name.lower() != 'id':
-                    col_def += " UNIQUE"
-            
-            column_definitions.append(col_def)
-        
-        # Add auto-generated ID column if no suitable id exists
-        if not has_id_column:
-            column_definitions.insert(0, '"id" BIGSERIAL PRIMARY KEY')
-        
-        create_table_sql = f"""CREATE TABLE IF NOT EXISTS "{suggested_table_name}" (
-    {',\n    '.join(column_definitions)}
-);"""
+        # Generate CREATE TABLE SQL using shared logic
+        create_table_sql, _, _ = generate_create_table_sql(df, suggested_table_name, column_types_dict)
         
         return CSVPreviewResponse(
             columns=columns,
