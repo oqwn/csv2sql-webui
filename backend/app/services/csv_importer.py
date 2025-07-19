@@ -64,7 +64,7 @@ def detect_column_type(series: pd.Series) -> Tuple[str, str]:
                 continue
                 
         # Try pandas auto-detection
-        datetime_series = pd.to_datetime(non_null, errors='raise', infer_datetime_format=True)
+        datetime_series = pd.to_datetime(non_null, errors='raise')
         # Check if it has time component
         if (datetime_series.dt.time != pd.Timestamp('00:00:00').time()).any():
             return "TIMESTAMP", "datetime64[ns]"
@@ -205,7 +205,7 @@ async def import_csv_to_table(
                     1: True, 0: False
                 })
             elif pandas_dtype == "datetime64[ns]":
-                df[col] = pd.to_datetime(df[col], errors='coerce', infer_datetime_format=True)
+                df[col] = pd.to_datetime(df[col], errors='coerce')
     
     if create_table and detect_types:
         # Create table with proper types
