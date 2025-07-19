@@ -1868,23 +1868,22 @@ const SQLEditorPage: React.FC = () => {
             onClose={() => setShowSQLPreviewDialog(false)}
             file={uploadFiles[0]}
             tableName={importTableName || uploadFiles[0]?.name.replace(/\.csv$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}
-            onImport={async (sql?: string) => {
+            onImport={async (sql?: string, columnMapping?: Record<string, string>) => {
               if (sql) {
-                // Custom SQL provided - execute SQL first, then import data
+                // Custom SQL provided - use the import-with-sql endpoint
                 try {
                   const file = uploadFiles[0];
                   const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
                   const tableNameMatch = sql.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?"?([^"\s(]+)"?/i);
                   const extractedTableName = tableNameMatch ? tableNameMatch[1] : (importTableName || file.name.replace(/\.(csv|xlsx|xls)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
                   
-                  // First, execute the CREATE TABLE SQL
-                  await sqlAPI.executeQuery(sql);
-                  
-                  // Then import the data into the created table
                   if (isExcel) {
+                    // For Excel, we still need to create table first then import
+                    await sqlAPI.executeQuery(sql);
                     await importAPI.uploadExcel(file, extractedTableName, selectedSheet, false, false, false);
                   } else {
-                    await importAPI.uploadCSV(file, extractedTableName, false, false);
+                    // For CSV, use the import-with-sql endpoint that handles column mapping
+                    await importAPI.importCSVWithSQL(file, sql, extractedTableName, columnMapping);
                   }
                   
                   setResult({

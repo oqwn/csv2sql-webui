@@ -46,11 +46,14 @@ export const importAPI = {
     });
   },
 
-  importCSVWithSQL: (file: File, createTableSQL: string, tableName: string) => {
+  importCSVWithSQL: (file: File, createTableSQL: string, tableName: string, columnMapping?: Record<string, string>) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('create_table_sql', createTableSQL);
     formData.append('table_name', tableName);
+    if (columnMapping) {
+      formData.append('column_mapping', JSON.stringify(columnMapping));
+    }
     
     return api.post('/import/csv/import-with-sql', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

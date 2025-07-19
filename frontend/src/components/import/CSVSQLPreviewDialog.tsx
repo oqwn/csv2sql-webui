@@ -28,7 +28,7 @@ interface Props {
   onClose: () => void;
   file: File;
   tableName: string;
-  onImport: (sql?: string) => void;
+  onImport: (sql?: string, columnMapping?: Record<string, string>) => void;
 }
 
 interface TabPanelProps {
@@ -68,6 +68,7 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
     sample_data: Array<any>;
     total_rows: number;
   } | null>(null);
+  const [originalColumnMapping, setOriginalColumnMapping] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (open && file) {
@@ -102,6 +103,15 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
       });
       setCreateTableSQL(data.create_table_sql);
       setEditedSQL(data.create_table_sql);
+      
+      // Build mapping from original names to sanitized names
+      const mapping: Record<string, string> = {};
+      data.columns.forEach((col: any) => {
+        if (col.original_name && col.name) {
+          mapping[col.original_name] = col.name;
+        }
+      });
+      setOriginalColumnMapping(mapping);
     } catch (err: any) {
       const fileType = file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? 'Excel' : 'CSV';
       console.error(`Failed to preview ${fileType} file:`, err);
@@ -115,8 +125,27 @@ const CSVSQLPreviewDialog: React.FC<Props> = ({
     setImporting(true);
     setError('');
     try {
-      // Always call onImport with the SQL - the parent component will decide what to do
-      onImport(editedSQL);
+      // Parse the edited SQL to extract column mappings
+      const columnPattern = /"([^"]+)"\s+\w+/g;
+      const matches = editedSQL.matchAll(columnPattern);
+      const sqlColumns = Array.from(matches).map(match => match[1]);
+      
+      // Build new mapping from original CSV columns to edited SQL columns
+      const updatedMapping: Record<string, string> = {};
+      Object.entries(originalColumnMapping).forEach(([originalName, sanitizedName], index) => {
+        // Find if this column exists in the edited SQL
+        const sqlIndex = sqlColumns.findIndex(col => col === sanitizedName);
+        if (sqlIndex >= 0) {
+          // Column still exists with original name
+          updatedMapping[originalName] = sanitizedName;
+        } else if (index < sqlColumns.length) {
+          // Column might have been renamed - use position-based mapping
+          updatedMapping[originalName] = sqlColumns[index];
+        }
+      });
+      
+      // Always call onImport with the SQL and mapping - the parent component will decide what to do
+      onImport(editedSQL, updatedMapping);
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to import CSV file');
