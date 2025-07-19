@@ -1878,9 +1878,8 @@ const SQLEditorPage: React.FC = () => {
                   const extractedTableName = tableNameMatch ? tableNameMatch[1] : (importTableName || file.name.replace(/\.(csv|xlsx|xls)$/i, '').toLowerCase().replace(/[^a-z0-9]/g, '_'));
                   
                   if (isExcel) {
-                    // For Excel, we still need to create table first then import
-                    await sqlAPI.executeQuery(sql);
-                    await importAPI.uploadExcel(file, extractedTableName, selectedSheet, false, false, false);
+                    // For Excel, use the import-with-sql endpoint that handles column mapping
+                    await importAPI.importExcelWithSQL(file, sql, extractedTableName, selectedSheet, columnMapping);
                   } else {
                     // For CSV, use the import-with-sql endpoint that handles column mapping
                     await importAPI.importCSVWithSQL(file, sql, extractedTableName, columnMapping);

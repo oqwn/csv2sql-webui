@@ -123,6 +123,23 @@ export const importAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  importExcelWithSQL: (file: File, createTableSQL: string, tableName: string, sheetName?: string, columnMapping?: Record<string, string>) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('create_table_sql', createTableSQL);
+    formData.append('table_name', tableName);
+    if (sheetName) {
+      formData.append('sheet_name', sheetName);
+    }
+    if (columnMapping) {
+      formData.append('column_mapping', JSON.stringify(columnMapping));
+    }
+    
+    return api.post('/import/excel/import-with-sql', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export const exportAPI = {
