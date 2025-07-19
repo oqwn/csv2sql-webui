@@ -42,6 +42,7 @@ import { sqlAPI, exportAPI, importAPI } from '../services/api';
 import { SQLEditor } from '../components/sql/SQLEditor';
 import { generateBulkInsertSQL } from '../utils/dataGenerator';
 import CSVColumnConfigDialog from '../components/import/CSVColumnConfigDialog';
+import CSVSQLPreviewDialog from '../components/import/CSVSQLPreviewDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -179,6 +180,7 @@ const SQLEditorPage: React.FC = () => {
   const [importAllSheets, setImportAllSheets] = useState(false);
   const [showTypeDetection, setShowTypeDetection] = useState(true);
   const [showColumnConfigDialog, setShowColumnConfigDialog] = useState(false);
+  const [showSQLPreviewDialog, setShowSQLPreviewDialog] = useState(false);
   const [useAdvancedConfig, setUseAdvancedConfig] = useState(false);
 
   const executeQuery = async (sqlQuery?: string) => {
@@ -596,9 +598,9 @@ const SQLEditorPage: React.FC = () => {
     const isExcel = uploadFile.name.endsWith('.xlsx') || uploadFile.name.endsWith('.xls');
     const isCSV = uploadFile.name.endsWith('.csv');
 
-    // For CSV files with advanced configuration, show the dialog
+    // For CSV files with advanced configuration, show the SQL preview dialog
     if (isCSV && useAdvancedConfig) {
-      setShowColumnConfigDialog(true);
+      setShowSQLPreviewDialog(true);
       return;
     }
 
@@ -1422,7 +1424,7 @@ const SQLEditorPage: React.FC = () => {
                             onChange={(e) => setUseAdvancedConfig(e.target.checked)}
                           />
                         }
-                        label="Configure column types and constraints manually"
+                        label="Preview and edit CREATE TABLE statement"
                       />
                     </Grid>
                   )}
@@ -1594,27 +1596,52 @@ const SQLEditorPage: React.FC = () => {
       
       {/* CSV Column Configuration Dialog */}
       {uploadFile && (
-        <CSVColumnConfigDialog
-          open={showColumnConfigDialog}
-          onClose={() => setShowColumnConfigDialog(false)}
-          file={uploadFile}
-          tableName={importTableName}
-          onImport={async () => {
-            setShowColumnConfigDialog(false);
-            setUploadFile(null);
-            setImportTableName('');
-            setUseAdvancedConfig(false);
-            setError('');
-            // Show success in result
-            setResult({
-              message: 'CSV imported successfully with custom configuration',
-              row_count: -1,
-              columns: [],
-              execution_time: 0
-            });
-            await fetchTables();
-          }}
-        />
+        <>
+          <CSVColumnConfigDialog
+            open={showColumnConfigDialog}
+            onClose={() => setShowColumnConfigDialog(false)}
+            file={uploadFile}
+            tableName={importTableName}
+            onImport={async () => {
+              setShowColumnConfigDialog(false);
+              setUploadFile(null);
+              setImportTableName('');
+              setUseAdvancedConfig(false);
+              setError('');
+              // Show success in result
+              setResult({
+                message: 'CSV imported successfully with custom configuration',
+                row_count: -1,
+                columns: [],
+                execution_time: 0
+              });
+              await fetchTables();
+            }}
+          />
+          
+          {/* CSV SQL Preview Dialog */}
+          <CSVSQLPreviewDialog
+            open={showSQLPreviewDialog}
+            onClose={() => setShowSQLPreviewDialog(false)}
+            file={uploadFile}
+            tableName={importTableName}
+            onImport={async () => {
+              setShowSQLPreviewDialog(false);
+              setUploadFile(null);
+              setImportTableName('');
+              setUseAdvancedConfig(false);
+              setError('');
+              // Show success in result
+              setResult({
+                message: 'CSV imported successfully with custom SQL',
+                row_count: -1,
+                columns: [],
+                execution_time: 0
+              });
+              await fetchTables();
+            }}
+          />
+        </>
       )}
     </Box>
   );

@@ -33,12 +33,26 @@ export const importAPI = {
     });
   },
 
-  previewCSV: (file: File, sampleSize: number = 10) => {
+  previewCSV: (file: File, tableName?: string, sampleSize: number = 10) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('sample_size', String(sampleSize));
+    if (tableName) {
+      formData.append('table_name', tableName);
+    }
     
     return api.post('/import/csv/preview', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  importCSVWithSQL: (file: File, createTableSQL: string, tableName: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('create_table_sql', createTableSQL);
+    formData.append('table_name', tableName);
+    
+    return api.post('/import/csv/import-with-sql', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },

@@ -29,6 +29,8 @@ class CSVPreviewResponse(BaseModel):
     columns: List[Dict[str, Any]]
     sample_data: List[Dict[str, Any]]
     total_rows: int
+    create_table_sql: str
+    suggested_table_name: str
 
 
 @router.post("/csv")
@@ -66,6 +68,7 @@ async def import_csv(
 @router.post("/csv/preview", response_model=CSVPreviewResponse)
 async def preview_csv(
     file: UploadFile = File(...),
+    table_name: Optional[str] = Form(None),
     sample_size: int = Form(10),
 ) -> Any:
     """
@@ -103,10 +106,52 @@ async def preview_csv(
         sample_df = df.head(sample_size)
         sample_data = sample_df.to_dict(orient='records')
         
+        # Generate suggested table name
+        if not table_name and file.filename:
+            suggested_table_name = file.filename.rsplit('.', 1)[0].lower()
+            suggested_table_name = suggested_table_name.replace(' ', '_').replace('-', '_')
+        else:
+            suggested_table_name = table_name or "imported_table"
+        
+        # Generate CREATE TABLE SQL
+        column_definitions = []
+        for col in columns:
+            col_name = col["name"]
+            col_type = col["suggested_type"]
+            
+            # Build column definition
+            col_def = f'"{col_name}" {col_type}'
+            
+            # Add NOT NULL if column has no nulls
+            if not col["nullable"]:
+                col_def += " NOT NULL"
+            
+            # Add UNIQUE if all values are unique
+            if col["unique_values"] == len(df) and len(df) > 1:
+                col_def += " UNIQUE"
+            
+            column_definitions.append(col_def)
+        
+        # Add ID column if doesn't exist
+        if 'id' not in [c["name"].lower() for c in columns]:
+            column_definitions.insert(0, '"id" SERIAL PRIMARY KEY')
+        elif not any('PRIMARY KEY' in cd for cd in column_definitions):
+            # If id exists but no primary key, make id the primary key
+            for i, cd in enumerate(column_definitions):
+                if cd.startswith('"id"'):
+                    column_definitions[i] = cd.replace('"id" INTEGER', '"id" INTEGER PRIMARY KEY')
+                    break
+        
+        create_table_sql = f"""CREATE TABLE IF NOT EXISTS "{suggested_table_name}" (
+    {',\n    '.join(column_definitions)}
+);"""
+        
         return CSVPreviewResponse(
             columns=columns,
             sample_data=sample_data,
-            total_rows=len(df)
+            total_rows=len(df),
+            create_table_sql=create_table_sql,
+            suggested_table_name=suggested_table_name
         )
         
     except Exception as e:
@@ -194,6 +239,61 @@ async def import_csv_with_config(
             "column_count": len(parsed_config.columns)
         }
         
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/csv/import-with-sql")
+async def import_csv_with_sql(
+    file: UploadFile = File(...),
+    create_table_sql: str = Form(...),
+    table_name: str = Form(...),
+    db: Session = Depends(get_db),
+) -> Any:
+    """
+    Import CSV file with custom CREATE TABLE SQL
+    """
+    if file.filename and not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="File must be CSV format")
+    
+    try:
+        # Validate and execute the CREATE TABLE SQL
+        # Basic validation - must be CREATE TABLE statement
+        sql_upper = create_table_sql.strip().upper()
+        if not sql_upper.startswith('CREATE TABLE'):
+            raise HTTPException(status_code=400, detail="SQL must be a CREATE TABLE statement")
+        
+        # Execute the CREATE TABLE statement
+        db.execute(text(create_table_sql))
+        db.commit()
+        
+        # Read CSV file
+        content = await file.read()
+        df = pd.read_csv(io.BytesIO(content))
+        
+        # Clean column names to match the table (lowercase, replace special chars)
+        df.columns = [col.lower().replace(' ', '_').replace('-', '_') for col in df.columns]
+        
+        # Import data to the table
+        df.to_sql(
+            table_name,
+            con=db.get_bind(),
+            if_exists='append',
+            index=False,
+            method='multi'
+        )
+        
+        return {
+            "message": f"Successfully imported {len(df)} rows to table '{table_name}'",
+            "table_name": table_name,
+            "row_count": len(df),
+            "column_count": len(df.columns)
+        }
+        
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
