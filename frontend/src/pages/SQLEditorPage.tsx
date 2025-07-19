@@ -629,32 +629,7 @@ const SQLEditorPage: React.FC = () => {
 
       // Handle single file import with custom table name
       if (isExcel && (!importTableName.trim() || excelSheets.length > 0)) {
-        const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
-        
-        try {
-          const response = await importSingleFile(file, tableName);
-          
-          // Show success result
-          let message = response.data.message || 'Excel file imported successfully';
-          if (response.data.row_count && response.data.column_count) {
-            message += `\n\nRows imported: ${response.data.row_count}`;
-            message += `\nColumns: ${response.data.column_count}`;
-            message += `\nTable: ${response.data.table_name || tableName}`;
-          }
-          
-          setResult({
-            columns: ['Status'],
-            rows: [[message]],
-            row_count: response.data.row_count || 0,
-            execution_time: 0,
-            executedQuery: `IMPORT ${file.name}`
-          });
-          
-          clearFileQueue();
-          await fetchTables();
-        } catch (err: any) {
-          setError(err.response?.data?.detail || 'Failed to import Excel file');
-        }
+        await handleImportWithFeedback([file], false);
         return;
       }
     }
@@ -664,88 +639,7 @@ const SQLEditorPage: React.FC = () => {
     setImportProgress({ current: 0, total: filesToProcess.length, status: 'Starting import...' });
     
     try {
-      let response;
-      
-      if (filesToProcess.length === 1) {
-        // Single file import
-        const file = filesToProcess[0];
-        const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
-        response = await importSingleFile(file, tableName);
-      } else {
-        // Multiple file import - separate CSV and Excel files
-        const csvFiles = filesToProcess.filter(f => f.name.endsWith('.csv'));
-        const excelFiles = filesToProcess.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
-        
-        // If preview mode is enabled and there are CSV files, show batch preview
-        if (!useAutoDetect && csvFiles.length > 0) {
-          setShowBatchPreviewDialog(true);
-          return;
-        }
-        
-        if (csvFiles.length > 0) {
-          response = await importAPI.uploadCSVBatch(
-            csvFiles,
-            true, // create_table
-            useAutoDetect // detect_types
-          );
-        }
-        
-        // Handle Excel files one by one for now
-        if (excelFiles.length > 0) {
-          setError('Excel batch import not yet supported. Please import Excel files one by one.');
-          return;
-        }
-      }
-      
-      // Format result message
-      let message: string;
-      if (filesToProcess.length === 1 && response) {
-        message = response.data.message || 'Import successful';
-        if (response.data.column_types && useAutoDetect) {
-          const typeInfo = response.data.column_types
-            .map((col: any) => `${col.name} (${col.type})`)
-            .join(', ');
-          message += `\n\nDetected columns: ${typeInfo}`;
-        }
-      } else if (response) {
-        message = `Batch import completed:\n`;
-        message += `- Total files: ${response.data.total_files}\n`;
-        message += `- Successful: ${response.data.successful}\n`;
-        message += `- Failed: ${response.data.failed}\n\n`;
-        
-        if (response.data.results && response.data.results.length > 0) {
-          message += `Successfully imported tables:\n`;
-          response.data.results.forEach((result: any) => {
-            message += `- ${result.table_name}: ${result.row_count} rows\n`;
-          });
-        }
-        
-        if (response.data.errors && response.data.errors.length > 0) {
-          message += `\nErrors:\n`;
-          response.data.errors.forEach((error: any) => {
-            message += `- ${error.filename}: ${error.error}\n`;
-          });
-        }
-      } else {
-        message = 'Import failed - no response received';
-      }
-      
-      setResult({
-        columns: ['Status'],
-        rows: [[message]],
-        row_count: response ? (typeof response.data.row_count === 'number' ? response.data.row_count : response.data.successful || 0) : 0,
-        execution_time: 0,
-        executedQuery: filesToProcess.length === 1 
-          ? `IMPORT ${filesToProcess[0].name}` 
-          : `BATCH IMPORT ${filesToProcess.length} files`
-      });
-      
-      clearFileQueue();
-      setImportProgress({ current: 0, total: 0, status: '' });
-      await fetchTables();
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Import failed');
-      setImportProgress({ current: 0, total: 0, status: '' });
+      await handleImportWithFeedback(filesToProcess, filesToProcess.length > 1);
     } finally {
       setLoading(false);
     }
@@ -770,6 +664,121 @@ const SQLEditorPage: React.FC = () => {
         true, // create_table
         useAutoDetect // detect_types
       );
+    }
+  };
+
+  const handleImportWithFeedback = async (files: File[], isBatch: boolean = false) => {
+    try {
+      let response;
+      
+      if (isBatch || files.length > 1) {
+        // Batch import
+        const csvFiles = files.filter(f => f.name.endsWith('.csv'));
+        const excelFiles = files.filter(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+        
+        if (csvFiles.length > 0 && !useAutoDetect) {
+          setShowBatchPreviewDialog(true);
+          return;
+        }
+        
+        if (csvFiles.length > 0) {
+          response = await importAPI.uploadCSVBatch(csvFiles, true, useAutoDetect);
+        }
+        
+        // Handle Excel files one by one (no batch API for Excel)
+        if (excelFiles.length > 0) {
+          const excelResults = [];
+          for (const file of excelFiles) {
+            const tableName = file.name.replace(/\.(xlsx|xls)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const result = await importSingleFile(file, tableName);
+            excelResults.push({
+              filename: file.name,
+              table_name: result.data.table_name || tableName,
+              row_count: result.data.row_count || 0,
+              status: 'success'
+            });
+          }
+          
+          if (!response) {
+            response = {
+              data: {
+                total_files: excelFiles.length,
+                successful: excelResults.length,
+                failed: 0,
+                results: excelResults,
+                errors: []
+              }
+            };
+          }
+        }
+      } else {
+        // Single file import
+        const file = files[0];
+        const tableName = importTableName.trim() || file.name.replace(/\.(xlsx|xls|csv)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+        response = await importSingleFile(file, tableName);
+      }
+      
+      // Generate success message
+      let message: string;
+      const fileType = files[0]?.name.endsWith('.csv') ? 'CSV' : 'Excel';
+      
+      if (!response) {
+        message = 'Import failed - no response received';
+      } else if (files.length === 1 && !isBatch) {
+        // Single file
+        message = response.data.message || `${fileType} file imported successfully`;
+        if (response.data.row_count && response.data.column_count) {
+          message += `\n\nRows imported: ${response.data.row_count}`;
+          message += `\nColumns: ${response.data.column_count}`;
+          message += `\nTable: ${response.data.table_name || importTableName}`;
+        }
+        if (response.data.column_types && useAutoDetect) {
+          const typeInfo = response.data.column_types
+            .map((col: any) => `${col.name} (${col.type})`)
+            .join(', ');
+          message += `\n\nDetected columns: ${typeInfo}`;
+        }
+      } else {
+        // Batch import
+        message = `Batch import completed:\n`;
+        message += `- Total files: ${response.data.total_files}\n`;
+        message += `- Successful: ${response.data.successful}\n`;
+        message += `- Failed: ${response.data.failed}\n\n`;
+        
+        if (response.data.results && response.data.results.length > 0) {
+          message += `Successfully imported tables:\n`;
+          response.data.results.forEach((result: any) => {
+            message += `- ${result.table_name}: ${result.row_count} rows\n`;
+          });
+        }
+        
+        if (response.data.errors && response.data.errors.length > 0) {
+          message += `\nErrors:\n`;
+          response.data.errors.forEach((error: any) => {
+            message += `- ${error.filename}: ${error.error}\n`;
+          });
+        }
+      }
+      
+      // Set result for UI feedback
+      setResult({
+        columns: ['Status'],
+        rows: [[message]],
+        row_count: response ? (typeof response.data.row_count === 'number' ? response.data.row_count : response.data.successful || 0) : 0,
+        execution_time: 0,
+        executedQuery: files.length === 1 
+          ? `IMPORT ${files[0].name}` 
+          : `BATCH IMPORT ${files.length} files`
+      });
+      
+      // Cleanup and refresh
+      clearFileQueue();
+      setImportProgress({ current: 0, total: 0, status: '' });
+      await fetchTables();
+      
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Import failed');
+      setImportProgress({ current: 0, total: 0, status: '' });
     }
   };
 
