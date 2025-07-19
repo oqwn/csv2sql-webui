@@ -49,15 +49,57 @@
   - [x] Download functionality
   - [x] Export API endpoint
 
-## Phase 4: Batch Scheduling
-- [ ] Design job scheduling system
-- [ ] Create job queue infrastructure
-- [ ] Implement cron-like scheduler
-- [ ] Build job monitoring dashboard
-- [ ] Add job failure handling and retry logic
-- [ ] Create job notification system
+## Phase 4: ETL Pipeline & Data Integration
+- [ ] Data Extraction
+  - [ ] Connect to relational databases (MySQL, PostgreSQL, etc.)
+  - [ ] Connect to NoSQL databases (MongoDB, Redis, etc.)
+  - [ ] Support API data sources
+  - [ ] Message queue integration (Kafka, RabbitMQ)
+  - [ ] Support binlog/oplog for real-time sync
+  - [ ] Incremental extraction based on timestamps/IDs
+  - [ ] Full extraction with chunking support
+- [ ] Data Transformation
+  - [ ] Data filtering and cleaning rules
+  - [ ] Data type conversions and format standardization
+  - [ ] Aggregation operations (sum/count/group by)
+  - [ ] Join operations across data sources
+  - [ ] Column splitting and merging
+  - [ ] Custom transformation scripts (Python/SQL)
+  - [ ] Data validation and quality checks
+- [ ] Data Loading
+  - [ ] Append mode (add new records)
+  - [ ] Overwrite mode (replace all data)
+  - [ ] Upsert mode (update or insert)
+  - [ ] Merge mode (complex update logic)
+  - [ ] Bulk loading optimization
+  - [ ] Transaction control and rollback
+  - [ ] Error isolation and dirty data handling
+- [ ] ETL Job Management
+  - [ ] Visual drag-and-drop pipeline builder
+  - [ ] Job scheduling with cron expressions
+  - [ ] Event-based triggers
+  - [ ] Dependency management between jobs
+  - [ ] Parameter configuration and templates
+  - [ ] Job history and audit logs
+  - [ ] Performance monitoring and alerts
+  - [ ] Chunk processing and resume capability
+  - [ ] Retry logic with exponential backoff
+- [ ] Code Generation
+  - [ ] SQL to Python code examples
+  - [ ] SQL to Java code examples
+  - [ ] SQL to Go code examples
+  - [ ] SQL to Node.js code examples
 
-## Phase 5: Data Catalog
+## Phase 5: Batch Scheduling (Enhanced)
+- [ ] Advanced scheduling features
+- [ ] Workflow orchestration
+- [ ] Resource management
+- [ ] Priority queues
+- [ ] Distributed job execution
+- [ ] Job failure handling and retry logic
+- [ ] Job notification system
+
+## Phase 6: Data Catalog
 - [ ] Design metadata schema
 - [ ] Implement table/column comments
 - [ ] Create ownership management
@@ -69,7 +111,7 @@
   - [ ] Search UI implementation
   - [ ] Advanced filtering options
 
-## Phase 6: BI System & Dashboard
+## Phase 7: BI System & Dashboard
 - [ ] Design dashboard framework
 - [ ] Create chart component library
   - [ ] Bar charts
@@ -81,7 +123,7 @@
 - [ ] Create dashboard sharing functionality
 - [ ] Build dashboard templates
 
-## Phase 7: Security & Access Control
+## Phase 8: Security & Access Control
 - [ ] Design RBAC (Role-Based Access Control) system
 - [ ] Implement row-level security
   - [ ] Policy engine
@@ -92,7 +134,7 @@
 - [ ] Create role assignment interface
 - [ ] Build audit logging system
 
-## Phase 8: One-Click Export
+## Phase 9: One-Click Export
 - [ ] Design export workflow
 - [ ] Implement multi-format export
   - [ ] CSV
@@ -103,7 +145,7 @@
 - [ ] Add progress tracking for large exports
 - [ ] Implement download manager
 
-## Phase 9: LLM Integration
+## Phase 10: LLM Integration
 - [ ] Design LLM integration architecture
 - [ ] Implement natural language to SQL converter
 - [ ] Create data analysis assistant
@@ -111,7 +153,7 @@
 - [ ] Build conversation interface
 - [ ] Implement context management
 
-## Phase 10: NoSQL Support
+## Phase 11: NoSQL Support
 - [ ] Research NoSQL database types to support
 - [ ] Design unified query interface
 - [ ] Implement MongoDB query support
