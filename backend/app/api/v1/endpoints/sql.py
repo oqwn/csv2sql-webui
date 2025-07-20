@@ -8,6 +8,39 @@ from app.services.local_storage import local_storage
 router = APIRouter()
 
 
+async def get_primary_key_info(executor: DataSourceSQLExecutor, table_name: str) -> Optional[str]:
+    """Get the primary key column name for a table"""
+    try:
+        # Try different database-specific queries for primary key detection
+        queries = [
+            # PostgreSQL
+            f"""
+            SELECT column_name 
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+            ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = '{table_name}' AND tc.constraint_type = 'PRIMARY KEY'
+            """,
+            # MySQL
+            f"""
+            SELECT column_name 
+            FROM information_schema.key_column_usage 
+            WHERE table_name = '{table_name}' AND constraint_name = 'PRIMARY'
+            """,
+            # Generic fallback - first column
+            f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position LIMIT 1"
+        ]
+        
+        for query in queries:
+            result = await executor.execute_query(query)
+            if not result['error'] and result['rows'] and len(result['rows']) > 0:
+                return result['rows'][0][0] if result['rows'][0] else None
+        
+        return None
+    except Exception:
+        return None
+
+
 class SQLQueryRequest(BaseModel):
     data_source_id: int
     query: str
@@ -35,6 +68,7 @@ class TableInfo(BaseModel):
     type: str
     row_count: Optional[int] = None
     columns: List[Dict[str, Any]]
+    primary_key: Optional[str] = None
 
 
 @router.post("/execute", response_model=SQLQueryResponse)
@@ -100,6 +134,17 @@ async def get_table_info(request: TableInfoRequest) -> TableInfo:
     
     if not table_info:
         raise HTTPException(status_code=404, detail=f"Table '{request.table_name}' not found")
+    
+    # Get primary key using proper database query
+    primary_key = await get_primary_key_info(executor, request.table_name)
+    
+    # Update table info with correct primary key information
+    if primary_key:
+        table_info['primary_key'] = primary_key
+        # Also update the column info to mark the primary key column
+        for col in table_info.get('columns', []):
+            if col['name'] == primary_key:
+                col['primary_key'] = True
     
     return table_info
 
