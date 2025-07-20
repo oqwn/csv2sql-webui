@@ -88,4 +88,4 @@ logs/
 # Project specific
 CLAUDE.md
 uploads/
-static/generated/
+static/generated/data/

@@ -14,12 +14,8 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
     
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "sqlite:///./sql_webui.db"
-    )
-    
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # Local storage directory
+    DATA_DIR: str = os.getenv("DATA_DIR", "data/storage")
     
     BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:3000",

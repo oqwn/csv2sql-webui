@@ -9,20 +9,27 @@ const api = axios.create({
   },
 });
 
-// No authentication needed
-
-// Authentication endpoints removed
-
+// SQL API - requires data source
 export const sqlAPI = {
-  executeQuery: (sql: string) => api.post('/sql/execute', { sql }),
-  getTables: () => api.get('/sql/tables'),
-  getTableColumns: (tableName: string) => api.get(`/sql/tables/${tableName}/columns`),
+  executeQuery: (dataSourceId: number, sql: string) => 
+    api.post('/sql/execute', { data_source_id: dataSourceId, query: sql }),
+  
+  getTables: (dataSourceId: number) => 
+    api.post('/sql/tables', { data_source_id: dataSourceId }),
+  
+  getTableInfo: (dataSourceId: number, tableName: string) => 
+    api.post('/sql/table-info', { data_source_id: dataSourceId, table_name: tableName }),
+  
+  validateQuery: (dataSourceId: number, sql: string) =>
+    api.post('/sql/validate', { data_source_id: dataSourceId, query: sql }),
 };
 
+// Import API - requires data source
 export const importAPI = {
-  uploadCSV: (file: File, tableName?: string, createTable: boolean = true, detectTypes: boolean = true) => {
+  uploadCSV: (dataSourceId: number, file: File, tableName?: string, createTable: boolean = true, detectTypes: boolean = true) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('data_source_id', String(dataSourceId));
     if (tableName) {
       formData.append('table_name', tableName);
     }
@@ -46,9 +53,10 @@ export const importAPI = {
     });
   },
 
-  importCSVWithSQL: (file: File, createTableSQL: string, tableName: string, columnMapping?: Record<string, string>) => {
+  importCSVWithSQL: (dataSourceId: number, file: File, createTableSQL: string, tableName: string, columnMapping?: Record<string, string>) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('data_source_id', String(dataSourceId));
     formData.append('create_table_sql', createTableSQL);
     formData.append('table_name', tableName);
     if (columnMapping) {
@@ -60,11 +68,12 @@ export const importAPI = {
     });
   },
 
-  uploadCSVBatch: (files: File[], createTable: boolean = true, detectTypes: boolean = true) => {
+  uploadCSVBatch: (dataSourceId: number, files: File[], createTable: boolean = true, detectTypes: boolean = true) => {
     const formData = new FormData();
     files.forEach(file => {
       formData.append('files', file);
     });
+    formData.append('data_source_id', String(dataSourceId));
     formData.append('create_table', String(createTable));
     formData.append('detect_types', String(detectTypes));
     
@@ -73,7 +82,7 @@ export const importAPI = {
     });
   },
 
-  importCSVWithConfig: (file: File, config: {
+  importCSVWithConfig: (dataSourceId: number, file: File, config: {
     table_name: string;
     columns: Array<{
       name: string;
@@ -86,6 +95,7 @@ export const importAPI = {
   }) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('data_source_id', String(dataSourceId));
     formData.append('config', JSON.stringify(config));
     
     return api.post('/import/csv/import-with-config', formData, {
@@ -93,9 +103,10 @@ export const importAPI = {
     });
   },
   
-  uploadExcel: (file: File, tableName?: string, sheetName?: string, importAllSheets: boolean = false, createTable: boolean = true, detectTypes: boolean = true) => {
+  uploadExcel: (dataSourceId: number, file: File, tableName?: string, sheetName?: string, importAllSheets: boolean = false, createTable: boolean = true, detectTypes: boolean = true) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('data_source_id', String(dataSourceId));
     if (tableName) formData.append('table_name', tableName);
     if (sheetName) formData.append('sheet_name', sheetName);
     formData.append('import_all_sheets', String(importAllSheets));
@@ -124,9 +135,10 @@ export const importAPI = {
     });
   },
 
-  importExcelWithSQL: (file: File, createTableSQL: string, tableName: string, sheetName?: string, columnMapping?: Record<string, string>) => {
+  importExcelWithSQL: (dataSourceId: number, file: File, createTableSQL: string, tableName: string, sheetName?: string, columnMapping?: Record<string, string>) => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('data_source_id', String(dataSourceId));
     formData.append('create_table_sql', createTableSQL);
     formData.append('table_name', tableName);
     if (sheetName) {
@@ -150,7 +162,7 @@ export const exportAPI = {
 };
 
 export const tableAPI = {
-  getTableData: (params: {
+  getTableData: (dataSourceId: number, params: {
     table_name: string;
     page: number;
     page_size: number;
@@ -158,25 +170,25 @@ export const tableAPI = {
     search_value?: string;
     order_by?: string;
     order_direction?: 'ASC' | 'DESC';
-  }) => api.post('/tables/data', params),
+  }) => api.post('/tables/data', { data_source_id: dataSourceId, ...params }),
   
-  createRecord: (table_name: string, data: Record<string, any>) => 
-    api.post('/tables/record', { table_name, data }),
+  createRecord: (dataSourceId: number, table_name: string, data: Record<string, any>) => 
+    api.post('/tables/record', { data_source_id: dataSourceId, table_name, data }),
   
-  updateRecord: (table_name: string, primary_key_column: string, primary_key_value: any, data: Record<string, any>) => {
-    const payload = { table_name, primary_key_column, primary_key_value, data };
+  updateRecord: (dataSourceId: number, table_name: string, primary_key_column: string, primary_key_value: any, data: Record<string, any>) => {
+    const payload = { data_source_id: dataSourceId, table_name, primary_key_column, primary_key_value, data };
     console.log('API updateRecord payload:', payload);
     return api.put('/tables/record', payload);
   },
   
-  deleteRecord: (table_name: string, primary_key_column: string, primary_key_value: any) =>
-    api.post('/tables/record/delete', { table_name, primary_key_column, primary_key_value }),
+  deleteRecord: (dataSourceId: number, table_name: string, primary_key_column: string, primary_key_value: any) =>
+    api.post('/tables/record/delete', { data_source_id: dataSourceId, table_name, primary_key_column, primary_key_value }),
   
-  getTableInfo: (table_name: string) =>
-    api.get(`/tables/table/${table_name}/info`),
+  getTableInfo: (dataSourceId: number, table_name: string) =>
+    api.post('/tables/info', { data_source_id: dataSourceId, table_name }),
   
-  deleteTable: (table_name: string) =>
-    api.delete(`/tables/table/${table_name}`),
+  deleteTable: (dataSourceId: number, table_name: string) =>
+    api.post('/tables/delete', { data_source_id: dataSourceId, table_name }),
 };
 
 export default api;

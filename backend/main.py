@@ -1,28 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 import uvicorn
 
 from app.core.config import settings
 from app.api.v1.api import api_router
-from app.db.session import engine
-from app.db.base import Base
-
-# Import models to register them with Base
-import app.models  # noqa: E402
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    yield
-
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
+    openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
 app.add_middleware(
