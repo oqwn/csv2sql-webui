@@ -19,7 +19,45 @@ def detect_column_type(series: pd.Series) -> Tuple[str, str]:
     if set(non_null.unique()).issubset({True, False, 1, 0, "true", "false", "True", "False", "TRUE", "FALSE"}):
         return "BOOLEAN", "bool"
     
-    # Try to convert to numeric
+    # Check if the series already contains datetime objects (from Excel/other sources)
+    if pd.api.types.is_datetime64_any_dtype(series):
+        # Check if it has time component
+        if (series.dt.time != pd.Timestamp('00:00:00').time()).any():
+            return "TIMESTAMP", "datetime64[ns]"
+        else:
+            return "DATE", "datetime64[ns]"
+    
+    # Try to parse as datetime (for string representations only)
+    # Only attempt datetime parsing on string-like data, not numeric
+    if not pd.api.types.is_numeric_dtype(series):
+        try:
+            # First try common date formats
+            date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d', 
+                           '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S']
+            
+            for fmt in date_formats:
+                try:
+                    pd.to_datetime(non_null, format=fmt, errors='raise')
+                    if '%H:%M:%S' in fmt:
+                        return "TIMESTAMP", "datetime64[ns]"
+                    else:
+                        return "DATE", "datetime64[ns]"
+                except:
+                    continue
+                    
+            # Try pandas auto-detection for strings that look like dates
+            # Only if all values are strings and look date-like
+            if all(isinstance(val, str) for val in non_null.head(5)):
+                datetime_series = pd.to_datetime(non_null, errors='raise')
+                # Check if it has time component
+                if (datetime_series.dt.time != pd.Timestamp('00:00:00').time()).any():
+                    return "TIMESTAMP", "datetime64[ns]"
+                else:
+                    return "DATE", "datetime64[ns]"
+        except (ValueError, TypeError):
+            pass
+    
+    # Try to convert to numeric (after datetime check)
     try:
         numeric_series = pd.to_numeric(non_null, errors='raise')
         if (numeric_series % 1 == 0).all():
@@ -41,32 +79,6 @@ def detect_column_type(series: pd.Series) -> Tuple[str, str]:
             # Float type
             return "DOUBLE PRECISION", "float64"
     except (ValueError, TypeError, OverflowError):
-        pass
-    
-    # Try to parse as datetime
-    try:
-        # First try common date formats
-        date_formats = ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%Y/%m/%d', 
-                       '%Y-%m-%d %H:%M:%S', '%d/%m/%Y %H:%M:%S', '%m/%d/%Y %H:%M:%S']
-        
-        for fmt in date_formats:
-            try:
-                pd.to_datetime(non_null, format=fmt, errors='raise')
-                if '%H:%M:%S' in fmt:
-                    return "TIMESTAMP", "datetime64[ns]"
-                else:
-                    return "DATE", "datetime64[ns]"
-            except:
-                continue
-                
-        # Try pandas auto-detection
-        datetime_series = pd.to_datetime(non_null, errors='raise')
-        # Check if it has time component
-        if (datetime_series.dt.time != pd.Timestamp('00:00:00').time()).any():
-            return "TIMESTAMP", "datetime64[ns]"
-        else:
-            return "DATE", "datetime64[ns]"
-    except (ValueError, TypeError):
         pass
     
     # Check string length for VARCHAR vs TEXT
