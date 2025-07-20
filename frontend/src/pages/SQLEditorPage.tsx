@@ -168,7 +168,7 @@ const SQLEditorPage: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const initialTab = searchParams.get('tab') === 'import' ? 3 : 0;
-  const { isConnected } = useDataSource();
+  const { isConnected, selectedDataSource } = useDataSource();
   
   const [activeTab, setActiveTab] = useState(initialTab);
   const [query, setQuery] = useState('');
@@ -227,9 +227,11 @@ const SQLEditorPage: React.FC = () => {
   };
 
   const fetchTables = async () => {
+    if (!selectedDataSource) return;
+    
     try {
-      const response = await sqlAPI.getTables();
-      setTables(response.data.tables || []);
+      const response = await sqlAPI.getTables(selectedDataSource.id);
+      setTables(response.data || []);
     } catch (err) {
       console.error('Failed to fetch tables:', err);
     }
@@ -247,7 +249,7 @@ const SQLEditorPage: React.FC = () => {
 
   React.useEffect(() => {
     fetchTables();
-  }, []);
+  }, [selectedDataSource]);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
