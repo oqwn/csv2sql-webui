@@ -44,6 +44,8 @@ import { generateBulkInsertSQL } from '../utils/dataGenerator';
 import CSVColumnConfigDialog from '../components/import/CSVColumnConfigDialog';
 import CSVSQLPreviewDialog from '../components/import/CSVSQLPreviewDialog';
 import CSVBatchPreviewDialog from '../components/import/CSVBatchPreviewDialog';
+import { useDataSource } from '../contexts/DataSourceContext';
+import DataSourceSelector from '../components/common/DataSourceSelector';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -63,6 +65,17 @@ function TabPanel(props: TabPanelProps) {
     >
       {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
     </div>
+  );
+}
+
+// Component to show data source requirement
+function DataSourceRequired() {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+      <Box sx={{ textAlign: 'center', maxWidth: 500 }}>
+        <DataSourceSelector required={true} showRequiredMessage={true} />
+      </Box>
+    </Box>
   );
 }
 
@@ -155,6 +168,7 @@ const SQLEditorPage: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const initialTab = searchParams.get('tab') === 'import' ? 3 : 0;
+  const { isConnected } = useDataSource();
   
   const [activeTab, setActiveTab] = useState(initialTab);
   const [query, setQuery] = useState('');
@@ -805,31 +819,37 @@ const SQLEditorPage: React.FC = () => {
 
         <Box sx={{ p: 2 }}>
           <TabPanel value={activeTab} index={0}>
-            <SQLEditor
-              value={query}
-              onChange={setQuery}
-              onExecute={() => executeQuery()}
-              error={error}
-              readOnly={loading}
-            />
-            <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
-              <Button
-                variant="contained"
-                startIcon={<PlayArrowIcon />}
-                onClick={() => executeQuery()}
-                disabled={!query.trim() || loading}
-              >
-                {loading ? 'Executing...' : 'Execute Query'}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<ClearIcon />}
-                onClick={() => setQuery('')}
-                disabled={loading}
-              >
-                Clear
-              </Button>
-            </Box>
+            {!isConnected ? (
+              <DataSourceRequired />
+            ) : (
+              <>
+                <SQLEditor
+                  value={query}
+                  onChange={setQuery}
+                  onExecute={() => executeQuery()}
+                  error={error}
+                  readOnly={loading}
+                />
+                <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<PlayArrowIcon />}
+                    onClick={() => executeQuery()}
+                    disabled={!query.trim() || loading}
+                  >
+                    {loading ? 'Executing...' : 'Execute Query'}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    startIcon={<ClearIcon />}
+                    onClick={() => setQuery('')}
+                    disabled={loading}
+                  >
+                    Clear
+                  </Button>
+                </Box>
+              </>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={1}>
@@ -1093,7 +1113,10 @@ const SQLEditorPage: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={activeTab} index={2}>
-            <Grid container spacing={2}>
+            {!isConnected ? (
+              <DataSourceRequired />
+            ) : (
+              <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -1437,11 +1460,15 @@ const SQLEditorPage: React.FC = () => {
                   </Button>
                 </Box>
               </Grid>
-            </Grid>
+              </Grid>
+            )}
           </TabPanel>
 
           <TabPanel value={activeTab} index={3}>
-            <Grid container spacing={2}>
+            {!isConnected ? (
+              <DataSourceRequired />
+            ) : (
+              <Grid container spacing={2}>
               <Grid item xs={12}>
                 <Box
                   sx={{
@@ -1699,7 +1726,8 @@ const SQLEditorPage: React.FC = () => {
                   </Grid>
                 </>
               )}
-            </Grid>
+              </Grid>
+            )}
           </TabPanel>
         </Box>
       </Paper>
