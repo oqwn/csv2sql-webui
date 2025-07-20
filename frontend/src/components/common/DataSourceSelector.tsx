@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { 
   Add as AddIcon, 
-  Database as DatabaseIcon,
+  Storage as StorageIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -128,7 +128,7 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
           label={label}
           onChange={handleChange}
           disabled={loading}
-          startAdornment={<DatabaseIcon sx={{ mr: 1, color: 'action.active' }} />}
+          startAdornment={<StorageIcon sx={{ mr: 1, color: 'action.active' }} />}
         >
           {dataSources.map((dataSource) => (
             <MenuItem key={dataSource.id} value={dataSource.id}>
