@@ -27,29 +27,43 @@ class DataSourceSQLExecutor:
                 await connector.connect()
                 
                 with connector.engine.connect() as conn:
-                    result = conn.execute(text(query))
+                    # Begin transaction explicitly
+                    trans = conn.begin()
                     
-                    # Check if this is a query that returns data
-                    query_upper = query.strip().upper()
-                    is_select_query = query_upper.startswith('SELECT') or query_upper.startswith('WITH')
-                    
-                    if is_select_query:
-                        # Get column names
-                        columns = list(result.keys()) if hasattr(result, 'keys') else []
+                    try:
+                        result = conn.execute(text(query))
                         
-                        # Fetch rows
-                        rows = []
-                        for row in result:
-                            rows.append(list(row))
+                        # Check if this is a query that returns data
+                        query_upper = query.strip().upper()
+                        is_select_query = query_upper.startswith('SELECT') or query_upper.startswith('WITH')
                         
-                        row_count = len(rows)
-                    else:
-                        # DDL/DML statements (INSERT, UPDATE, DELETE, DROP, CREATE, etc.)
-                        columns = []
-                        rows = []
-                        row_count = result.rowcount if hasattr(result, 'rowcount') else 0
-                    
-                    execution_time = time.time() - start_time
+                        if is_select_query:
+                            # Get column names
+                            columns = list(result.keys()) if hasattr(result, 'keys') else []
+                            
+                            # Fetch rows
+                            rows = []
+                            for row in result:
+                                rows.append(list(row))
+                            
+                            row_count = len(rows)
+                        else:
+                            # DDL/DML statements (INSERT, UPDATE, DELETE, DROP, CREATE, etc.)
+                            columns = []
+                            rows = []
+                            row_count = result.rowcount if hasattr(result, 'rowcount') else 0
+                        
+                        # Commit the transaction for DDL/DML statements
+                        if not is_select_query:
+                            trans.commit()
+                        else:
+                            trans.rollback()  # Don't commit SELECT queries
+                        
+                        execution_time = time.time() - start_time
+                        
+                    except Exception as e:
+                        trans.rollback()
+                        raise e
                     
                     await connector.disconnect()
                     
