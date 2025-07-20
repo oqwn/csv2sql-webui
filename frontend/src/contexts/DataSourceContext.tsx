@@ -51,7 +51,7 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
       }
       
       // If selected data source no longer exists, clear selection
-      if (selectedDataSource && !response.data.find(ds => ds.id === selectedDataSource.id)) {
+      if (selectedDataSource && !response.data.find((ds: DataSource) => ds.id === selectedDataSource.id)) {
         setSelectedDataSource(null);
       }
     } catch (error) {

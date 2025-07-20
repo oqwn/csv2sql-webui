@@ -1,4 +1,63 @@
 import { sqlAPI, importAPI, exportAPI } from './api';
+import api from './api';
+
+// Types for data source management
+export interface DataSource {
+  id: number;
+  name: string;
+  type: string;
+  description?: string;
+  connection_config: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
+}
+
+export interface SchemaInfo {
+  name: string;
+  type: string;
+  row_count?: number;
+  document_count?: number;
+  columns?: Array<{
+    name: string;
+    type: string;
+    sql_type: string;
+  }>;
+}
+
+export interface DataPreview {
+  status: string;
+  error?: string;
+  columns: Array<{
+    name: string;
+    type: string;
+    sql_type: string;
+  }>;
+  sample_data: Record<string, any>[];
+  row_count: number;
+}
+
+export interface SupportedDataSource {
+  type: string;
+  name: string;
+  description: string;
+  category?: string;
+  supports_incremental?: boolean;
+  supports_real_time?: boolean;
+  fields: Array<{
+    name: string;
+    label: string;
+    type: string;
+    required: boolean;
+    default?: any;
+    options?: string[];
+  }>;
+}
+
+export interface ConnectionTestRequest {
+  type: string;
+  connection_config: Record<string, any>;
+}
 
 // This service provides helpful error messages when data source is not selected
 class DataSourceRequiredError extends Error {
@@ -95,6 +154,47 @@ export const createDataSourceAwareAPI = (getSelectedDataSourceId: () => number |
       }
     }
   };
+};
+
+// Data source management API
+export const dataSourceAPI = {
+  // Get all data sources
+  getDataSources: () => api.get('/data-sources/'),
+  
+  // Create a new data source
+  createDataSource: (dataSource: Omit<DataSource, 'id' | 'created_at' | 'updated_at'>) => 
+    api.post('/data-sources/', dataSource),
+  
+  // Delete a data source
+  deleteDataSource: (id: number) => api.delete(`/data-sources/${id}`),
+  
+  // Test connection to a data source
+  testConnection: (connectionData: { type: string; connection_config: Record<string, any> }) =>
+    api.post('/data-sources/test-connection', connectionData),
+  
+  // Get supported data source types
+  getSupportedDataSources: () => api.get('/data-sources/supported'),
+  
+  // Get schema information for a data source
+  getSchema: (connectionData: { type: string; connection_config: Record<string, any> }) =>
+    api.post('/data-sources/schema', connectionData),
+  
+  // Preview data from a data source
+  previewData: (
+    type: string, 
+    connection_config: Record<string, any>, 
+    source_name: string, 
+    limit: number = 100
+  ) => api.post('/data-sources/preview', {
+    type,
+    connection_config,
+    source_name,
+    limit
+  }),
+  
+  // Extract data from a data source
+  extractData: (dataSourceId: number, jobConfig: any) =>
+    api.post(`/data-sources/${dataSourceId}/extract`, jobConfig)
 };
 
 export { DataSourceRequiredError };
