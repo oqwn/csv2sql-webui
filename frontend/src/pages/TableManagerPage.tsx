@@ -141,9 +141,23 @@ const TableManagerPage: React.FC = () => {
       const response = await tableAPI.getTableInfo(selectedDataSource.id, selectedTable);
       console.log('Table info response:', response.data);
       
-      if (response.data && response.data.table_name) {
-        setTableInfo(response.data);
-        console.log('Table info set successfully:', response.data);
+      if (response.data && response.data.name) {
+        // Convert backend format to frontend format
+        const tableInfo: TableInfo = {
+          table_name: response.data.name,
+          columns: response.data.columns.map((col: any) => ({
+            name: col.name,
+            type: col.type,
+            nullable: col.nullable !== false,
+            default: null,
+            is_primary: col.primary_key || false,
+            is_unique: false,
+            foreign_key: null
+          })),
+          primary_key: response.data.columns.find((col: any) => col.primary_key)?.name || null
+        };
+        setTableInfo(tableInfo);
+        console.log('Table info set successfully:', tableInfo);
       } else {
         console.error('Invalid table info response:', response.data);
         setError('Invalid table information received');

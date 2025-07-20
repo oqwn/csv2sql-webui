@@ -112,15 +112,24 @@ async def get_table_data(request: TableDataRequest) -> Any:
         if count_result['error']:
             raise HTTPException(status_code=400, detail=f"Count query failed: {count_result['error']}")
         
-        total_count = count_result['data'][0]['total'] if count_result['data'] else 0
+        total_count = count_result['rows'][0][0] if count_result['rows'] else 0
         
         # Execute data query
         data_result = await executor.execute_query(query)
         if data_result['error']:
             raise HTTPException(status_code=400, detail=f"Data query failed: {data_result['error']}")
         
-        rows = data_result['data'] or []
-        columns = list(rows[0].keys()) if rows else []
+        raw_rows = data_result['rows'] or []
+        columns = data_result['columns'] or []
+        
+        # Convert rows from arrays to objects
+        rows = []
+        for raw_row in raw_rows:
+            row_dict = {}
+            for i, value in enumerate(raw_row):
+                if i < len(columns):
+                    row_dict[columns[i]] = value
+            rows.append(row_dict)
         
         # Get primary key
         primary_key = await get_primary_key(executor, request.table_name)
