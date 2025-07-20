@@ -62,17 +62,25 @@ class RelationalDatabaseConnector(DataSourceConnector):
                 result = conn.execute(text(version_query)).fetchone()
                 version = result[0] if result else "Unknown"
                 
-                # Get database size info
-                inspector = inspect(self.engine)
-                table_names = inspector.get_table_names()
-                
-                return {
+                response = {
                     "status": "success",
                     "database_type": self.db_type,
                     "version": version,
-                    "table_count": len(table_names),
                     "connection_info": self.get_connection_info()
                 }
+                
+                # If database is specified, get table count
+                if self.connection_config.get('database'):
+                    inspector = inspect(self.engine)
+                    table_names = inspector.get_table_names()
+                    response["table_count"] = len(table_names)
+                else:
+                    # If no database specified, return available databases
+                    databases = await self.get_available_databases()
+                    response["available_databases"] = databases
+                    response["database_count"] = len(databases)
+                
+                return response
                 
         except Exception as e:
             return {
@@ -168,7 +176,7 @@ class RelationalDatabaseConnector(DataSourceConnector):
         if self.db_type == 'sqlite':
             return ['type', 'database']  # SQLite only needs database file path
         else:
-            return ['type', 'host', 'database', 'username']  # Password is optional
+            return ['type', 'host', 'username']  # Password and database are optional
     
     async def supports_incremental_extraction(self) -> bool:
         """Relational databases support incremental extraction"""
@@ -198,6 +206,46 @@ class RelationalDatabaseConnector(DataSourceConnector):
             logger.error(f"Failed to get incremental columns: {str(e)}")
             return []
     
+    async def get_available_databases(self) -> List[str]:
+        """Get list of available databases"""
+        try:
+            if not self.engine:
+                await self.connect()
+                
+            with self.engine.connect() as conn:
+                if self.db_type == 'mysql':
+                    result = conn.execute(text("SHOW DATABASES"))
+                    databases = [row[0] for row in result]
+                    # Filter out system databases
+                    return [db for db in databases if db not in ['information_schema', 'mysql', 'performance_schema', 'sys']]
+                    
+                elif self.db_type == 'postgresql':
+                    result = conn.execute(text(
+                        "SELECT datname FROM pg_database WHERE datistemplate = false"
+                    ))
+                    return [row[0] for row in result]
+                    
+                elif self.db_type == 'mssql':
+                    result = conn.execute(text(
+                        "SELECT name FROM sys.databases WHERE name NOT IN ('master', 'tempdb', 'model', 'msdb')"
+                    ))
+                    return [row[0] for row in result]
+                    
+                elif self.db_type == 'oracle':
+                    # Oracle uses schemas instead of databases
+                    result = conn.execute(text(
+                        "SELECT username FROM all_users WHERE username NOT IN "
+                        "('SYS', 'SYSTEM', 'DBSNMP', 'SYSMAN', 'OUTLN', 'FLOWS_FILES', 'MDSYS', 'ORDSYS', 'EXFSYS', 'CTXSYS', 'XDB', 'ANONYMOUS')"
+                    ))
+                    return [row[0] for row in result]
+                    
+                else:
+                    return []
+                    
+        except Exception as e:
+            logger.error(f"Failed to get available databases: {str(e)}")
+            return []
+    
     def _build_connection_string(self) -> str:
         """Build database connection string"""
         config = self.connection_config
@@ -210,20 +258,29 @@ class RelationalDatabaseConnector(DataSourceConnector):
         username = config['username']
         host = config['host']
         port = config.get('port', self._get_default_port())
-        database = config['database']
+        database = config.get('database', '')  # Database is optional
+        
+        # Build auth part
+        auth = f"{username}:{password}" if password else username
         
         if self.db_type == 'mysql':
             driver = config.get('driver', 'pymysql')
-            return f"mysql+{driver}://{username}:{password}@{host}:{port}/{database}"
+            base_url = f"mysql+{driver}://{auth}@{host}:{port}"
+            return f"{base_url}/{database}" if database else base_url
         elif self.db_type == 'postgresql':
             driver = config.get('driver', 'psycopg2')
-            return f"postgresql+{driver}://{username}:{password}@{host}:{port}/{database}"
+            base_url = f"postgresql+{driver}://{auth}@{host}:{port}"
+            # PostgreSQL requires at least a database name (default to 'postgres' for listing)
+            return f"{base_url}/{database}" if database else f"{base_url}/postgres"
         elif self.db_type == 'mssql':
             driver = config.get('driver', 'pyodbc')
-            return f"mssql+{driver}://{username}:{password}@{host}:{port}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+            base_url = f"mssql+{driver}://{auth}@{host}:{port}"
+            url = f"{base_url}/{database}" if database else base_url
+            return f"{url}?driver=ODBC+Driver+17+for+SQL+Server"
         elif self.db_type == 'oracle':
             driver = config.get('driver', 'cx_oracle')
-            return f"oracle+{driver}://{username}:{password}@{host}:{port}/{database}"
+            base_url = f"oracle+{driver}://{auth}@{host}:{port}"
+            return f"{base_url}/{database}" if database else base_url
         else:
             raise ValueError(f"Unsupported database type: {self.db_type}")
     

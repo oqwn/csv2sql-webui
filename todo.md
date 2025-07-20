@@ -50,14 +50,16 @@
   - [x] Export API endpoint
 
 ## Phase 4: ETL Pipeline & Data Integration
-- [ ] Data Extraction
-  - [ ] Connect to relational databases (MySQL, PostgreSQL, etc.)
-  - [ ] Connect to NoSQL databases (MongoDB, Redis, etc.)
-  - [ ] Support API data sources
-  - [ ] Message queue integration (Kafka, RabbitMQ)
+- [x] Data Extraction
+  - [x] Connect to relational databases (MySQL, PostgreSQL, etc.)
+  - [x] Connect to NoSQL databases (MongoDB, Redis, etc.)
+  - [x] Support API data sources
+  - [x] Message queue integration (Kafka, RabbitMQ)
   - [ ] Support binlog/oplog for real-time sync
-  - [ ] Incremental extraction based on timestamps/IDs
-  - [ ] Full extraction with chunking support
+  - [x] Incremental extraction based on timestamps/IDs
+  - [x] Full extraction with chunking support
+  - [x] Make password fields optional for data source connections
+  - [x] Support connecting without database to list available databases
 - [ ] Data Transformation
   - [ ] Data filtering and cleaning rules
   - [ ] Data type conversions and format standardization

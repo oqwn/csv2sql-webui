@@ -52,7 +52,10 @@ class DataExtractionManager:
             raise ValueError(f"Unsupported data source type: {data_source_type}")
         
         connector_class = self.connectors[data_source_type]
-        return connector_class(connection_config)
+        # Add type to connection_config for relational databases
+        config_with_type = connection_config.copy()
+        config_with_type['type'] = data_source_type
+        return connector_class(config_with_type)
     
     async def test_connection(self, data_source_type: str, connection_config: Dict[str, Any]) -> Dict[str, Any]:
         """Test connection to a data source"""

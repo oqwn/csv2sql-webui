@@ -41,11 +41,14 @@ class MongoDBConnector(DataSourceConnector):
             # Test the connection
             self.client.admin.command('ping')
             
-            # Get database
-            db_name = self.connection_config['database']
-            self.database = self.client[db_name]
+            # Get database if specified
+            db_name = self.connection_config.get('database')
+            if db_name:
+                self.database = self.client[db_name]
+                logger.info(f"Successfully connected to MongoDB database: {db_name}")
+            else:
+                logger.info("Successfully connected to MongoDB server")
             
-            logger.info(f"Successfully connected to MongoDB database: {db_name}")
             return True
             
         except Exception as e:
@@ -73,20 +76,35 @@ class MongoDBConnector(DataSourceConnector):
             # Get server info
             server_info = self.client.server_info()
             
-            # Get database stats
-            db_stats = self.database.command("dbStats")
-            
-            # Get collection names
-            collections = self.database.list_collection_names()
-            
-            return {
+            response = {
                 "status": "success",
                 "database_type": "mongodb",
                 "version": server_info.get("version", "Unknown"),
-                "collection_count": len(collections),
-                "database_size": db_stats.get("dataSize", 0),
                 "connection_info": self.get_connection_info()
             }
+            
+            if self.database:
+                # Get database stats
+                db_stats = self.database.command("dbStats")
+                
+                # Get collection names
+                collections = self.database.list_collection_names()
+                
+                response.update({
+                    "collection_count": len(collections),
+                    "database_size": db_stats.get("dataSize", 0)
+                })
+            else:
+                # List available databases
+                databases = self.client.list_database_names()
+                # Filter out system databases
+                user_databases = [db for db in databases if db not in ['admin', 'config', 'local']]
+                response.update({
+                    "available_databases": user_databases,
+                    "database_count": len(user_databases)
+                })
+            
+            return response
             
         except Exception as e:
             return {
@@ -196,7 +214,7 @@ class MongoDBConnector(DataSourceConnector):
     
     def get_required_config_fields(self) -> List[str]:
         """Return required configuration fields for MongoDB"""
-        return ['host', 'database']
+        return ['host']  # Database is optional for listing available databases
     
     async def supports_incremental_extraction(self) -> bool:
         """MongoDB supports incremental extraction"""

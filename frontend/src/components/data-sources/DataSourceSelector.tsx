@@ -270,7 +270,31 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
               {testResult.version && ` (Version: ${testResult.version})`}
               {testResult.table_count !== undefined && ` - ${testResult.table_count} tables found`}
               {testResult.collection_count !== undefined && ` - ${testResult.collection_count} collections found`}
+              {testResult.database_count !== undefined && ` - ${testResult.database_count} databases found`}
             </Typography>
+            
+            {testResult.available_databases && testResult.available_databases.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Available Databases:
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {testResult.available_databases.map((db: string) => (
+                    <Chip
+                      key={db}
+                      label={db}
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleConfigChange('database', db)}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                  ))}
+                </Box>
+                <Typography variant="caption" sx={{ mt: 1, display: 'block' }}>
+                  Click on a database to select it
+                </Typography>
+              </Box>
+            )}
           </Alert>
         )}
         
@@ -289,22 +313,22 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: true },
-        { name: 'password', label: 'Password', type: 'password', required: true },
-        { name: 'database', label: 'Database', type: 'text', required: true }
+        { name: 'password', label: 'Password', type: 'password', required: false, helperText: 'Optional' },
+        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' }
       ],
       postgresql: [
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: true },
-        { name: 'password', label: 'Password', type: 'password', required: true },
-        { name: 'database', label: 'Database', type: 'text', required: true }
+        { name: 'password', label: 'Password', type: 'password', required: false, helperText: 'Optional' },
+        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' }
       ],
       mongodb: [
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: false },
         { name: 'password', label: 'Password', type: 'password', required: false },
-        { name: 'database', label: 'Database', type: 'text', required: true },
+        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' },
         { name: 'auth_source', label: 'Auth Source', type: 'text', required: false, helperText: 'Default: admin' }
       ],
       redis: [
@@ -345,8 +369,8 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
       rabbitmq: [
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
-        { name: 'username', label: 'Username', type: 'text', required: true },
-        { name: 'password', label: 'Password', type: 'password', required: true },
+        { name: 'username', label: 'Username', type: 'text', required: false, helperText: 'Default: guest' },
+        { name: 'password', label: 'Password', type: 'password', required: false, helperText: 'Default: guest' },
         { name: 'virtual_host', label: 'Virtual Host', type: 'text', required: false, helperText: 'Default: /' },
         { name: 'exchange', label: 'Exchange', type: 'text', required: false },
         { name: 'queue_prefix', label: 'Queue Prefix', type: 'text', required: false, helperText: 'Default: csv2sql' }
