@@ -1,119 +1,116 @@
-from typing import Any, Optional
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Form
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from typing import Any, Optional, List, Dict
+from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 import pandas as pd
 import io
-import re
 import json
 
-from app.db.session import get_db
-from app.services.excel_importer import (
-    import_excel_to_table, 
-    import_excel_all_sheets,
-    preview_excel_data,
-    get_excel_sheets
-)
-from app.services.import_service import import_file_with_sql
+from app.services.excel_importer import get_excel_sheets
+from app.services.csv_importer import generate_create_table_sql
+from app.services.type_detection import detect_column_type
 from app.services.file_validation_service import validate_excel_file
+from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename
+from app.services.local_storage import local_storage
+from app.services.sql_executor import DataSourceSQLExecutor
 
 router = APIRouter()
 
 
-@router.post("/excel")
-async def import_excel(
-    file: UploadFile = File(...),
-    table_name: Optional[str] = Form(None),
-    sheet_name: Optional[str] = Form(None),
-    import_all_sheets: bool = Form(False),
-    create_table: bool = Form(True),
-    detect_types: bool = Form(True),
-    db: Session = Depends(get_db),
+@router.post("/excel/sheets")
+async def get_sheets(
+    file: UploadFile = File(...)
 ) -> Any:
-    """
-    Import Excel file to database table(s)
+    """Get list of sheets in Excel file"""
+    validation_result = validate_excel_file(file)
+    if not validation_result["valid"]:
+        raise HTTPException(status_code=400, detail=validation_result["error"])
     
-    - **file**: Excel file (.xlsx or .xls)
-    - **table_name**: Target table name (optional, will be auto-generated from filename)
-    - **sheet_name**: Specific sheet to import (optional, defaults to first sheet)
-    - **import_all_sheets**: Import all sheets as separate tables
-    - **create_table**: Create table if it doesn't exist
-    - **detect_types**: Automatically detect column data types
-    """
-    validate_excel_file(file.filename)
+    contents = await file.read()
+    sheets = get_excel_sheets(io.BytesIO(contents))
     
-    try:
-        if import_all_sheets:
-            result = await import_excel_all_sheets(
-                db=db,
-                file=file,
-                table_prefix=table_name,
-                create_table=create_table,
-                detect_types=detect_types
-            )
-        else:
-            result = await import_excel_to_table(
-                db=db,
-                file=file,
-                table_name=table_name or "",
-                sheet_name=sheet_name,
-                create_table=create_table,
-                detect_types=detect_types
-            )
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "filename": file.filename,
+        "sheets": sheets
+    }
 
 
 @router.post("/excel/preview")
 async def preview_excel(
     file: UploadFile = File(...),
     sheet_name: Optional[str] = Form(None),
-    rows: int = Form(10),
+    rows: int = Form(10)
 ) -> Any:
-    """
-    Preview Excel file data without importing
+    """Preview Excel file contents"""
+    validation_result = validate_excel_file(file)
+    if not validation_result["valid"]:
+        raise HTTPException(status_code=400, detail=validation_result["error"])
     
-    - **file**: Excel file (.xlsx or .xls)
-    - **sheet_name**: Specific sheet to preview (optional, defaults to first sheet)
-    - **rows**: Number of rows to preview (default: 10)
-    """
-    validate_excel_file(file.filename)
+    contents = await file.read()
     
-    try:
-        contents = await file.read()
-        result = preview_excel_data(contents, sheet_name, rows)
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Read Excel file
+    excel_file = pd.ExcelFile(io.BytesIO(contents))
+    
+    # Get sheet names
+    sheet_names = excel_file.sheet_names
+    
+    # If sheet_name not specified, use first sheet
+    if not sheet_name:
+        sheet_name = sheet_names[0]
+    elif sheet_name not in sheet_names:
+        raise HTTPException(status_code=400, detail=f"Sheet '{sheet_name}' not found in Excel file")
+    
+    # Read the specified sheet
+    df = pd.read_excel(io.BytesIO(contents), sheet_name=sheet_name)
+    
+    # Get sample data
+    sample_data = df.head(rows).to_dict('records')
+    
+    # Generate table name
+    table_name = generate_table_name_from_filename(f"{file.filename}_{sheet_name}")
+    
+    # Detect column types
+    columns_info = []
+    for col in df.columns:
+        column_type, type_stats = detect_column_type(df[col])
+        preview_info = build_column_preview_info(
+            col, column_type, df[col], type_stats
+        )
+        columns_info.append(preview_info)
+    
+    # Generate SQL
+    create_table_sql = generate_create_table_sql(table_name, columns_info)
+    
+    return {
+        "filename": file.filename,
+        "sheet_name": sheet_name,
+        "available_sheets": sheet_names,
+        "table_name": table_name,
+        "row_count": len(df),
+        "columns": columns_info,
+        "sample_data": sample_data,
+        "create_table_sql": create_table_sql
+    }
 
 
-@router.post("/excel/sheets")
-async def get_sheets(
+@router.post("/excel")
+async def upload_excel(
     file: UploadFile = File(...),
+    table_name: Optional[str] = Form(None),
+    sheet_name: Optional[str] = Form(None),
+    import_all_sheets: bool = Form(False),
+    create_table: bool = Form(True),
+    detect_types: bool = Form(True),
+    data_source_id: int = Form(...)
 ) -> Any:
-    """
-    Get list of sheets in an Excel file
+    """Upload Excel file and import to database"""
+    # Get data source
+    data_source = local_storage.get_data_source(data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
     
-    - **file**: Excel file (.xlsx or .xls)
-    """
-    validate_excel_file(file.filename)
-    
-    try:
-        contents = await file.read()
-        sheets = get_excel_sheets(contents)
-        return {
-            "sheets": sheets,
-            "sheet_count": len(sheets)
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "status": "error",
+        "message": "Direct Excel import to data source not yet implemented. Please use the preview and SQL import method."
+    }
 
 
 @router.post("/excel/import-with-sql")
@@ -123,23 +120,80 @@ async def import_excel_with_sql(
     table_name: str = Form(...),
     sheet_name: Optional[str] = Form(None),
     column_mapping: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
+    data_source_id: int = Form(...)
 ) -> Any:
-    """
-    Import Excel file with custom CREATE TABLE SQL
-    """
-    validate_excel_file(file.filename)
+    """Import Excel with custom SQL CREATE TABLE statement"""
+    # Get data source
+    data_source = local_storage.get_data_source(data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Validate file
+    validation_result = validate_excel_file(file)
+    if not validation_result["valid"]:
+        raise HTTPException(status_code=400, detail=validation_result["error"])
+    
+    contents = await file.read()
+    
+    # Read Excel file
+    if sheet_name:
+        df = pd.read_excel(io.BytesIO(contents), sheet_name=sheet_name)
+    else:
+        df = pd.read_excel(io.BytesIO(contents))
+    
+    # Apply column mapping if provided
+    if column_mapping:
+        mapping = json.loads(column_mapping)
+        df = df.rename(columns=mapping)
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
     
     try:
-        result = await import_file_with_sql(
-            db=db,
-            file=file,
-            create_table_sql=create_table_sql,
-            table_name=table_name,
-            column_mapping_json=column_mapping,
-            sheet_name=sheet_name
-        )
-        return result
+        # Create table
+        result = await executor.execute_query(create_table_sql)
+        if result['error']:
+            raise HTTPException(status_code=400, detail=f"Failed to create table: {result['error']}")
+        
+        # Insert data in batches
+        batch_size = 1000
+        total_rows = 0
+        
+        for i in range(0, len(df), batch_size):
+            batch = df.iloc[i:i+batch_size]
+            
+            # Generate INSERT statements
+            values_list = []
+            for _, row in batch.iterrows():
+                values = []
+                for val in row.values:
+                    if pd.isna(val):
+                        values.append("NULL")
+                    elif isinstance(val, str):
+                        escaped_val = val.replace("'", "''")
+                        values.append(f"'{escaped_val}'")
+                    else:
+                        values.append(str(val))
+                values_list.append(f"({', '.join(values)})")
+            
+            insert_sql = f"INSERT INTO {table_name} ({', '.join(df.columns)}) VALUES {', '.join(values_list)}"
+            
+            result = await executor.execute_query(insert_sql)
+            if result['error']:
+                raise HTTPException(status_code=400, detail=f"Failed to insert data: {result['error']}")
+            
+            total_rows += len(batch)
+        
+        return {
+            "status": "success",
+            "message": f"Successfully imported {total_rows} rows to table {table_name}",
+            "rows_imported": total_rows,
+            "table_name": table_name,
+            "sheet_name": sheet_name
+        }
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

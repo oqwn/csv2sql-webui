@@ -1,22 +1,18 @@
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
 import pandas as pd
 import io
 from datetime import datetime
 
-from app.db.session import get_db
 from app.schemas.export import ExportRequest
 
 router = APIRouter()
 
 
 @router.post("/data")
-async def export_data(
-    export_request: ExportRequest,
-    db: Session = Depends(get_db),
-) -> Any:
+async def export_data(export_request: ExportRequest) -> Any:
+    """Export data to CSV or Excel format"""
     try:
         # Create DataFrame from the data
         df = pd.DataFrame(export_request.data, columns=export_request.columns)

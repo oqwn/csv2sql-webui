@@ -1,10 +1,9 @@
 from typing import Any, Optional, List, Dict
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import text, inspect
+from fastapi import APIRouter, HTTPException, Form
 from pydantic import BaseModel
 
-from app.db.session import get_db
+from app.services.local_storage import local_storage
+from app.services.sql_executor import DataSourceSQLExecutor
 
 router = APIRouter()
 
@@ -17,11 +16,13 @@ class TableDataRequest(BaseModel):
     search_value: Optional[str] = None
     order_by: Optional[str] = None
     order_direction: str = "ASC"
+    data_source_id: int
 
 
 class RecordCreateRequest(BaseModel):
     table_name: str
     data: Dict[str, Any]
+    data_source_id: int
 
 
 class RecordUpdateRequest(BaseModel):
@@ -29,37 +30,63 @@ class RecordUpdateRequest(BaseModel):
     primary_key_column: str
     primary_key_value: Any
     data: Dict[str, Any]
+    data_source_id: int
 
 
 class RecordDeleteRequest(BaseModel):
     table_name: str
     primary_key_column: str
     primary_key_value: Any
+    data_source_id: int
 
 
-def get_primary_key(db: Session, table_name: str) -> Optional[str]:
+async def get_primary_key(executor: DataSourceSQLExecutor, table_name: str) -> Optional[str]:
     """Get the primary key column name for a table"""
     try:
-        inspector = inspect(db.get_bind())
-        pk_constraint = inspector.get_pk_constraint(table_name)
-        if pk_constraint and pk_constraint['constrained_columns']:
-            return pk_constraint['constrained_columns'][0]
+        # Try different database-specific queries for primary key detection
+        queries = [
+            # PostgreSQL
+            f"""
+            SELECT column_name 
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+            ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = '{table_name}' AND tc.constraint_type = 'PRIMARY KEY'
+            """,
+            # MySQL
+            f"""
+            SELECT column_name 
+            FROM information_schema.key_column_usage 
+            WHERE table_name = '{table_name}' AND constraint_name = 'PRIMARY'
+            """,
+            # Generic fallback - first column
+            f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table_name}' ORDER BY ordinal_position LIMIT 1"
+        ]
         
-        # Fallback: assume first column is primary key
-        columns = inspector.get_columns(table_name)
-        return columns[0]['name'] if columns else None
+        for query in queries:
+            result = await executor.execute_query(query)
+            if not result['error'] and result['data']:
+                return result['data'][0]['column_name'] if result['data'] else None
+        
+        return None
     except Exception:
         return None
 
 
 @router.post("/data")
-async def get_table_data(
-    request: TableDataRequest,
-    db: Session = Depends(get_db),
-) -> Any:
-    """
-    Get paginated table data with optional search
-    """
+async def get_table_data(request: TableDataRequest) -> Any:
+    """Get paginated table data with optional search"""
+    # Get data source
+    data_source = local_storage.get_data_source(request.data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
         # Build base query
         query = f'SELECT * FROM "{request.table_name}"'
@@ -68,7 +95,8 @@ async def get_table_data(
         # Add search filter if provided
         where_clause = ""
         if request.search_column and request.search_value:
-            where_clause = f' WHERE "{request.search_column}" ILIKE :search_value'
+            # Use LIKE for broader database compatibility
+            where_clause = f' WHERE "{request.search_column}" LIKE \'%{request.search_value}%\''
             query += where_clause
             count_query += where_clause
         
@@ -77,39 +105,25 @@ async def get_table_data(
             query += f' ORDER BY "{request.order_by}" {request.order_direction}'
         
         # Add pagination
-        query += f' LIMIT :limit OFFSET :offset'
+        query += f' LIMIT {request.page_size} OFFSET {request.page * request.page_size}'
         
         # Execute count query
-        count_params = {}
-        if request.search_value:
-            count_params['search_value'] = f'%{request.search_value}%'
+        count_result = await executor.execute_query(count_query)
+        if count_result['error']:
+            raise HTTPException(status_code=400, detail=f"Count query failed: {count_result['error']}")
         
-        count_result = db.execute(text(count_query), count_params).fetchone()
-        total_count = count_result[0] if count_result else 0
+        total_count = count_result['data'][0]['total'] if count_result['data'] else 0
         
         # Execute data query
-        data_params = {
-            'limit': request.page_size,
-            'offset': request.page * request.page_size
-        }
-        if request.search_value:
-            data_params['search_value'] = f'%{request.search_value}%'
+        data_result = await executor.execute_query(query)
+        if data_result['error']:
+            raise HTTPException(status_code=400, detail=f"Data query failed: {data_result['error']}")
         
-        result = db.execute(text(query), data_params)
-        
-        # Fetch all rows first
-        rows_data = result.fetchall()
-        
-        # Get column names
-        columns = list(result.keys()) if rows_data else []
-        
-        # Convert rows to dictionaries
-        rows = []
-        for row in rows_data:
-            rows.append(dict(row._mapping))
+        rows = data_result['data'] or []
+        columns = list(rows[0].keys()) if rows else []
         
         # Get primary key
-        primary_key = get_primary_key(db, request.table_name)
+        primary_key = await get_primary_key(executor, request.table_name)
         
         return {
             "columns": columns,
@@ -120,195 +134,230 @@ async def get_table_data(
             "primary_key": primary_key
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/record")
-async def create_record(
-    request: RecordCreateRequest,
-    db: Session = Depends(get_db),
-) -> Any:
-    """
-    Create a new record in the specified table
-    """
+async def create_record(request: RecordCreateRequest) -> Any:
+    """Create a new record in the specified table"""
+    # Get data source
+    data_source = local_storage.get_data_source(request.data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
         # Build INSERT query
         columns = list(request.data.keys())
-        placeholders = [f':{col}' for col in columns]
+        escaped_columns = [f'"{col}"' for col in columns]
+        
+        # Build values with proper escaping
+        values = []
+        for value in request.data.values():
+            if value is None:
+                values.append("NULL")
+            elif isinstance(value, str):
+                escaped_value = value.replace("'", "''")
+                values.append(f"'{escaped_value}'")
+            else:
+                values.append(str(value))
         
         query = f"""
-        INSERT INTO "{request.table_name}" ({', '.join([f'"{col}"' for col in columns])})
-        VALUES ({', '.join(placeholders)})
-        RETURNING *
+        INSERT INTO "{request.table_name}" ({', '.join(escaped_columns)})
+        VALUES ({', '.join(values)})
         """
         
         # Execute query
-        result = db.execute(text(query), request.data)
-        db.commit()
-        
-        # Return the created record
-        created_record = dict(result.fetchone()._mapping)
+        result = await executor.execute_query(query)
+        if result['error']:
+            raise HTTPException(status_code=400, detail=f"Insert failed: {result['error']}")
         
         return {
             "message": "Record created successfully",
-            "record": created_record
+            "table_name": request.table_name
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/record")
-async def update_record(
-    request: RecordUpdateRequest,
-    db: Session = Depends(get_db),
-) -> Any:
-    """
-    Update an existing record in the specified table
-    """
+async def update_record(request: RecordUpdateRequest) -> Any:
+    """Update an existing record in the specified table"""
+    # Get data source
+    data_source = local_storage.get_data_source(request.data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
-        # Build UPDATE query - exclude primary key from data to prevent overwriting
+        # Build UPDATE query - exclude primary key from data
         set_clauses = []
-        params = {}
         
         for col, value in request.data.items():
-            # Skip primary key column to avoid setting it in the update
             if col != request.primary_key_column:
-                set_clauses.append(f'"{col}" = :{col}')
-                params[col] = value
+                if value is None:
+                    set_clauses.append(f'"{col}" = NULL')
+                elif isinstance(value, str):
+                    escaped_value = value.replace("'", "''")
+                    set_clauses.append(f'"{col}" = \'{escaped_value}\'')
+                else:
+                    set_clauses.append(f'"{col}" = {value}')
         
-        # Add primary key to params for WHERE clause
-        params['pk_value'] = request.primary_key_value
-        
-        # Check if we have anything to update
         if not set_clauses:
             raise HTTPException(status_code=400, detail="No fields to update")
+        
+        # Escape primary key value
+        if isinstance(request.primary_key_value, str):
+            escaped_pk_value = request.primary_key_value.replace("'", "''")
+            pk_value_str = f"'{escaped_pk_value}'"
+        else:
+            pk_value_str = str(request.primary_key_value)
         
         query = f"""
         UPDATE "{request.table_name}"
         SET {', '.join(set_clauses)}
-        WHERE "{request.primary_key_column}" = :pk_value
-        RETURNING *
+        WHERE "{request.primary_key_column}" = {pk_value_str}
         """
         
         # Execute query
-        result = db.execute(text(query), params)
-        db.commit()
-        
-        # Check if record was updated
-        updated_record = result.fetchone()
-        if not updated_record:
-            raise HTTPException(status_code=404, detail="Record not found")
+        result = await executor.execute_query(query)
+        if result['error']:
+            raise HTTPException(status_code=400, detail=f"Update failed: {result['error']}")
         
         return {
             "message": "Record updated successfully",
-            "record": dict(updated_record._mapping)
+            "table_name": request.table_name
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/record/delete")
-async def delete_record(
-    request: RecordDeleteRequest,
-    db: Session = Depends(get_db),
-) -> Any:
-    """
-    Delete a record from the specified table
-    """
+async def delete_record(request: RecordDeleteRequest) -> Any:
+    """Delete a record from the specified table"""
+    # Get data source
+    data_source = local_storage.get_data_source(request.data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
+        # Escape primary key value
+        if isinstance(request.primary_key_value, str):
+            escaped_pk_value = request.primary_key_value.replace("'", "''")
+            pk_value_str = f"'{escaped_pk_value}'"
+        else:
+            pk_value_str = str(request.primary_key_value)
+        
         # Build DELETE query
         query = f"""
         DELETE FROM "{request.table_name}"
-        WHERE "{request.primary_key_column}" = :pk_value
-        RETURNING *
+        WHERE "{request.primary_key_column}" = {pk_value_str}
         """
         
-        params = {'pk_value': request.primary_key_value}
-        
         # Execute query
-        result = db.execute(text(query), params)
-        db.commit()
-        
-        # Check if record was deleted
-        deleted_record = result.fetchone()
-        if not deleted_record:
-            raise HTTPException(status_code=404, detail="Record not found")
+        result = await executor.execute_query(query)
+        if result['error']:
+            raise HTTPException(status_code=400, detail=f"Delete failed: {result['error']}")
         
         return {
             "message": "Record deleted successfully",
-            "record": dict(deleted_record._mapping)
+            "table_name": request.table_name
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/table/{table_name}/info")
+@router.post("/table/{table_name}/info")
 async def get_table_info(
     table_name: str,
-    db: Session = Depends(get_db),
+    data_source_id: int = Form(...)
 ) -> Any:
-    """
-    Get detailed information about a table including columns and constraints
-    """
+    """Get detailed information about a table including columns and constraints"""
+    # Get data source
+    data_source = local_storage.get_data_source(data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
-        inspector = inspect(db.get_bind())
+        # Get column information using information_schema
+        columns_query = f"""
+        SELECT 
+            column_name,
+            data_type,
+            is_nullable,
+            column_default
+        FROM information_schema.columns 
+        WHERE table_name = '{table_name}'
+        ORDER BY ordinal_position
+        """
         
-        # Get columns
-        columns = inspector.get_columns(table_name)
+        columns_result = await executor.execute_query(columns_query)
+        if columns_result['error']:
+            raise HTTPException(status_code=400, detail=f"Failed to get table info: {columns_result['error']}")
+        
+        columns = columns_result['data'] or []
         
         # Get primary key
-        pk_constraint = inspector.get_pk_constraint(table_name)
-        primary_keys = pk_constraint['constrained_columns'] if pk_constraint else []
-        
-        # Get foreign keys
-        foreign_keys = inspector.get_foreign_keys(table_name)
-        
-        # Get unique constraints
-        unique_constraints = inspector.get_unique_constraints(table_name)
+        primary_key = await get_primary_key(executor, table_name)
         
         # Format column information
         column_info = []
         for col in columns:
             col_data = {
-                "name": col['name'],
-                "type": str(col['type']),
-                "nullable": col['nullable'],
-                "default": col['default'],
-                "is_primary": col['name'] in primary_keys,
-                "is_unique": any(col['name'] in uc['column_names'] for uc in unique_constraints),
-                "foreign_key": None
+                "name": col['column_name'],
+                "type": col['data_type'],
+                "nullable": col['is_nullable'].lower() == 'yes',
+                "default": col['column_default'],
+                "is_primary": col['column_name'] == primary_key,
+                "is_unique": False,  # Would need additional query for this
+                "foreign_key": None  # Would need additional query for this
             }
-            
-            # Check if column is a foreign key
-            for fk in foreign_keys:
-                if col['name'] in fk['constrained_columns']:
-                    col_data['foreign_key'] = {
-                        "table": fk['referred_table'],
-                        "column": fk['referred_columns'][0] if fk['referred_columns'] else None
-                    }
-                    break
-            
             column_info.append(col_data)
         
         return {
             "table_name": table_name,
             "columns": column_info,
-            "primary_key": primary_keys[0] if primary_keys else None,
-            "foreign_keys": foreign_keys,
-            "unique_constraints": unique_constraints
+            "primary_key": primary_key,
+            "foreign_keys": [],  # Would need additional implementation
+            "unique_constraints": []  # Would need additional implementation
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -316,20 +365,27 @@ async def get_table_info(
 @router.delete("/table/{table_name}")
 async def delete_table(
     table_name: str,
-    db: Session = Depends(get_db),
+    data_source_id: int = Form(...)
 ) -> Any:
-    """
-    Delete a table from the database
-    """
+    """Delete a table from the database"""
+    # Get data source
+    data_source = local_storage.get_data_source(data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
     try:
-        # Check if table exists
-        inspector = inspect(db.get_bind())
-        if table_name not in inspector.get_table_names():
-            raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
-        
         # Drop the table
-        db.execute(text(f'DROP TABLE "{table_name}" CASCADE'))
-        db.commit()
+        query = f'DROP TABLE "{table_name}" CASCADE'
+        result = await executor.execute_query(query)
+        
+        if result['error']:
+            raise HTTPException(status_code=400, detail=f"Failed to delete table: {result['error']}")
         
         return {
             "message": f"Table '{table_name}' deleted successfully",
@@ -339,5 +395,4 @@ async def delete_table(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
