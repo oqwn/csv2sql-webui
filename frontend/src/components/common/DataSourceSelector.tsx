@@ -77,8 +77,8 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
     return typeColors[type] || '#666';
   };
 
-  // Show warning if no data sources exist
-  if (!loading && dataSources.length === 0) {
+  // Show warning if no data sources exist AND it's required
+  if (!loading && dataSources.length === 0 && required && showRequiredMessage) {
     return (
       <Alert severity="warning" sx={{ mb: 2 }}>
         <AlertTitle>No Data Sources Found</AlertTitle>
@@ -130,30 +130,38 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
           disabled={loading}
           startAdornment={<StorageIcon sx={{ mr: 1, color: 'action.active' }} />}
         >
-          {dataSources.map((dataSource) => (
-            <MenuItem key={dataSource.id} value={dataSource.id}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                <Box
-                  sx={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: getTypeColor(dataSource.type),
-                  }}
-                />
-                <Typography variant="body2" sx={{ fontWeight: 'medium', flexGrow: 1 }}>
-                  {dataSource.name}
-                </Typography>
-                <Chip 
-                  label={dataSource.type.toUpperCase()} 
-                  size="small" 
-                  color="primary" 
-                  variant="outlined"
-                  sx={{ height: 20 }}
-                />
-              </Box>
+          {dataSources.length === 0 ? (
+            <MenuItem disabled>
+              <Typography variant="body2" color="text.secondary">
+                No data sources configured
+              </Typography>
             </MenuItem>
-          ))}
+          ) : (
+            dataSources.map((dataSource) => (
+              <MenuItem key={dataSource.id} value={dataSource.id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: getTypeColor(dataSource.type),
+                    }}
+                  />
+                  <Typography variant="body2" sx={{ fontWeight: 'medium', flexGrow: 1 }}>
+                    {dataSource.name}
+                  </Typography>
+                  <Chip 
+                    label={dataSource.type.toUpperCase()} 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                    sx={{ height: 20 }}
+                  />
+                </Box>
+              </MenuItem>
+            ))
+          )}
         </Select>
         {helperText && (
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
