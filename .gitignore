@@ -49,6 +49,7 @@ backend/.env
 backend/.env.*
 !backend/.env.example
 backend/alembic/versions/
+backend/data
 
 # Database
 *.sqlite3
