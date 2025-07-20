@@ -666,6 +666,7 @@ const SQLEditorPage: React.FC = () => {
     
     if (isExcel) {
       return await importAPI.uploadExcel(
+        selectedDataSource!.id,
         file, 
         tableName,
         importAllSheets ? undefined : selectedSheet,
@@ -675,6 +676,7 @@ const SQLEditorPage: React.FC = () => {
       );
     } else {
       return await importAPI.uploadCSV(
+        selectedDataSource!.id,
         file, 
         tableName,
         true, // create_table
@@ -698,7 +700,7 @@ const SQLEditorPage: React.FC = () => {
         }
         
         if (csvFiles.length > 0) {
-          response = await importAPI.uploadCSVBatch(csvFiles, true, useAutoDetect);
+          response = await importAPI.uploadCSVBatch(selectedDataSource!.id, csvFiles, true, useAutoDetect);
         }
         
         // Handle Excel files one by one (no batch API for Excel)
@@ -1909,10 +1911,10 @@ const SQLEditorPage: React.FC = () => {
                   
                   if (isExcel) {
                     // For Excel, use the import-with-sql endpoint that handles column mapping
-                    await importAPI.importExcelWithSQL(file, sql, extractedTableName, selectedSheet, columnMapping);
+                    await importAPI.importExcelWithSQL(selectedDataSource!.id, file, sql, extractedTableName, selectedSheet, columnMapping);
                   } else {
                     // For CSV, use the import-with-sql endpoint that handles column mapping
-                    await importAPI.importCSVWithSQL(file, sql, extractedTableName, columnMapping);
+                    await importAPI.importCSVWithSQL(selectedDataSource!.id, file, sql, extractedTableName, columnMapping);
                   }
                   
                   setResult({
