@@ -40,9 +40,7 @@ async def preview_excel(
     rows: int = Form(10)
 ) -> Any:
     """Preview Excel file contents"""
-    validation_result = validate_excel_file(file)
-    if not validation_result["valid"]:
-        raise HTTPException(status_code=400, detail=validation_result["error"])
+    validate_excel_file(file)
     
     contents = await file.read()
     
@@ -72,12 +70,13 @@ async def preview_excel(
     for col in df.columns:
         column_type, type_stats = detect_column_type(df[col])
         preview_info = build_column_preview_info(
-            col, column_type, df[col], type_stats
+            df[col], col, column_type
         )
         columns_info.append(preview_info)
     
     # Generate SQL
-    create_table_sql = generate_create_table_sql(table_name, columns_info)
+    column_types = {col_info['name']: col_info['suggested_type'] for col_info in columns_info}
+    create_table_sql, _, _ = generate_create_table_sql(df, table_name, column_types)
     
     return {
         "filename": file.filename,
@@ -129,9 +128,7 @@ async def import_excel_with_sql(
         raise HTTPException(status_code=404, detail="Data source not found")
     
     # Validate file
-    validation_result = validate_excel_file(file)
-    if not validation_result["valid"]:
-        raise HTTPException(status_code=400, detail=validation_result["error"])
+    validate_excel_file(file)
     
     contents = await file.read()
     
