@@ -185,10 +185,10 @@ export const tableAPI = {
     api.post('/tables/record/delete', { data_source_id: dataSourceId, table_name, primary_key_column, primary_key_value }),
   
   getTableInfo: (dataSourceId: number, table_name: string) =>
-    api.post('/tables/info', { data_source_id: dataSourceId, table_name }),
+    api.post('/sql/table-info', { data_source_id: dataSourceId, table_name }),
   
   deleteTable: (dataSourceId: number, table_name: string) =>
-    api.post('/tables/delete', { data_source_id: dataSourceId, table_name }),
+    api.delete(`/tables/table/${table_name}?data_source_id=${dataSourceId}`),
 };
 
 export default api;

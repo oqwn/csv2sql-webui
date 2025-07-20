@@ -45,6 +45,8 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material';
 import { sqlAPI, tableAPI } from '../services/api';
+import { useDataSource } from '../contexts/DataSourceContext';
+import DataSourceSelector from '../components/common/DataSourceSelector';
 
 interface ColumnInfo {
   name: string;
@@ -66,6 +68,7 @@ interface TableInfo {
 }
 
 const TableManagerPage: React.FC = () => {
+  const { selectedDataSource, isConnected } = useDataSource();
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
@@ -95,8 +98,10 @@ const TableManagerPage: React.FC = () => {
   const [filterColumn, setFilterColumn] = useState('');
 
   useEffect(() => {
-    fetchTables();
-  }, []);
+    if (selectedDataSource) {
+      fetchTables();
+    }
+  }, [selectedDataSource]);
 
   useEffect(() => {
     if (selectedTable) {
@@ -116,19 +121,24 @@ const TableManagerPage: React.FC = () => {
   }, [page, rowsPerPage, searchQuery, filterColumn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTables = async () => {
+    if (!selectedDataSource) return;
+    
     try {
-      const response = await sqlAPI.getTables();
-      setTables(response.data.tables || []);
+      const response = await sqlAPI.getTables(selectedDataSource.id);
+      // Backend returns array of table objects with name property
+      const tableList = response.data || [];
+      const tableNames = tableList.map((table: any) => table.name);
+      setTables(tableNames);
     } catch (err) {
       console.error('Failed to fetch tables:', err);
     }
   };
 
   const fetchTableInfo = async () => {
-    if (!selectedTable) return;
+    if (!selectedTable || !selectedDataSource) return;
     try {
       console.log('Fetching table info for:', selectedTable);
-      const response = await tableAPI.getTableInfo(selectedTable);
+      const response = await tableAPI.getTableInfo(selectedDataSource.id, selectedTable);
       console.log('Table info response:', response.data);
       
       if (response.data && response.data.table_name) {
@@ -145,7 +155,7 @@ const TableManagerPage: React.FC = () => {
   };
 
   const fetchTableData = async () => {
-    if (!selectedTable) return;
+    if (!selectedTable || !selectedDataSource) return;
     
     setLoading(true);
     setError('');
@@ -169,7 +179,7 @@ const TableManagerPage: React.FC = () => {
         params.order_by = 'id';
       }
       
-      const response = await tableAPI.getTableData(params);
+      const response = await tableAPI.getTableData(selectedDataSource.id, params);
       
       setTableData(response.data.rows);
       setTotalRows(response.data.total_count);
@@ -244,7 +254,8 @@ const TableManagerPage: React.FC = () => {
     try {
       if (dialogMode === 'add') {
         console.log('Creating record:', { selectedTable, formData });
-        await tableAPI.createRecord(selectedTable, formData);
+        if (!selectedDataSource) throw new Error('No data source selected');
+        await tableAPI.createRecord(selectedDataSource.id, selectedTable, formData);
         setSuccess('Record added successfully');
       } else {
         const primaryKey = tableInfo?.primary_key;
@@ -262,7 +273,9 @@ const TableManagerPage: React.FC = () => {
           editingRecord 
         });
         
+        if (!selectedDataSource) throw new Error('No data source selected');
         await tableAPI.updateRecord(
+          selectedDataSource.id,
           selectedTable,
           primaryKey,
           primaryKeyValue,
@@ -291,7 +304,9 @@ const TableManagerPage: React.FC = () => {
     
     setLoading(true);
     try {
+      if (!selectedDataSource) throw new Error('No data source selected');
       await tableAPI.deleteRecord(
+        selectedDataSource.id,
         selectedTable,
         tableInfo.primary_key,
         deleteTarget[tableInfo.primary_key]
@@ -312,7 +327,8 @@ const TableManagerPage: React.FC = () => {
     
     setLoading(true);
     try {
-      await tableAPI.deleteTable(selectedTable);
+      if (!selectedDataSource) throw new Error('No data source selected');
+      await tableAPI.deleteTable(selectedDataSource.id, selectedTable);
       setSuccess(`Table '${selectedTable}' deleted successfully`);
       setDeleteTableDialogOpen(false);
       setSelectedTable('');
@@ -427,8 +443,30 @@ const TableManagerPage: React.FC = () => {
     );
   };
 
+  // Component to show data source requirement
+  function DataSourceRequired() {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <Box sx={{ textAlign: 'center', maxWidth: 500 }}>
+          <DataSourceSelector required={true} showRequiredMessage={true} />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Table Manager
+        </Typography>
+        <DataSourceRequired />
+      </Box>
+    );
+  }
+
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       <Grid container spacing={3}>
         {/* Header */}
         <Grid item xs={12}>
