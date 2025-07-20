@@ -29,13 +29,25 @@ class DataSourceSQLExecutor:
                 with connector.engine.connect() as conn:
                     result = conn.execute(text(query))
                     
-                    # Get column names
-                    columns = list(result.keys()) if hasattr(result, 'keys') else []
+                    # Check if this is a query that returns data
+                    query_upper = query.strip().upper()
+                    is_select_query = query_upper.startswith('SELECT') or query_upper.startswith('WITH')
                     
-                    # Fetch rows
-                    rows = []
-                    for row in result:
-                        rows.append(list(row))
+                    if is_select_query:
+                        # Get column names
+                        columns = list(result.keys()) if hasattr(result, 'keys') else []
+                        
+                        # Fetch rows
+                        rows = []
+                        for row in result:
+                            rows.append(list(row))
+                        
+                        row_count = len(rows)
+                    else:
+                        # DDL/DML statements (INSERT, UPDATE, DELETE, DROP, CREATE, etc.)
+                        columns = []
+                        rows = []
+                        row_count = result.rowcount if hasattr(result, 'rowcount') else 0
                     
                     execution_time = time.time() - start_time
                     
@@ -44,7 +56,7 @@ class DataSourceSQLExecutor:
                     return {
                         'columns': columns,
                         'rows': rows,
-                        'row_count': len(rows),
+                        'row_count': row_count,
                         'execution_time': execution_time,
                         'error': None
                     }
