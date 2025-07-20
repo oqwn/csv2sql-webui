@@ -43,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import DataSourceSelector from '../components/data-sources/DataSourceSelector';
 import { dataSourceAPI, DataSource, SchemaInfo, DataPreview } from '../services/dataSourceAPI';
+import { useDataSource } from '../contexts/DataSourceContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -59,6 +60,7 @@ function TabPanel({ children, value, index }: TabPanelProps) {
 }
 
 const DataSourcesPage: React.FC = () => {
+  const { fetchDataSources } = useDataSource();
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -104,6 +106,8 @@ const DataSourcesPage: React.FC = () => {
   const handleDataSourceCreated = (dataSource: DataSource) => {
     setDataSources(prev => [...prev, dataSource]);
     setShowSelector(false);
+    // Refresh the global context so other components see the new data source
+    fetchDataSources();
   };
 
   const handleDeleteDataSource = async (id: number) => {
@@ -114,6 +118,8 @@ const DataSourcesPage: React.FC = () => {
     try {
       await dataSourceAPI.deleteDataSource(id);
       setDataSources(prev => prev.filter(ds => ds.id !== id));
+      // Refresh the global context so other components see the data source is gone
+      fetchDataSources();
     } catch (err: any) {
       setError('Failed to delete data source');
     }

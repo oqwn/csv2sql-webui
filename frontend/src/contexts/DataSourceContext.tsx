@@ -62,9 +62,17 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     }
   };
 
-  // Load data sources on mount
+  // Load data sources on mount and when window gains focus
   useEffect(() => {
     fetchDataSources();
+    
+    // Refresh data sources when window regains focus (in case they were added in another tab)
+    const handleFocus = () => {
+      fetchDataSources();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   // Save selected data source to localStorage
