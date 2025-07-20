@@ -1,82 +1,68 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  SelectChangeEvent,
   Box,
-  Chip,
   Typography,
+  Chip,
   Button,
+  Alert,
+  AlertTitle,
   IconButton,
-  Tooltip,
+  Tooltip
 } from '@mui/material';
-import {
-  Add as AddIcon,
-  Refresh as RefreshIcon,
-  Storage as StorageIcon,
+import { 
+  Add as AddIcon, 
+  Database as DatabaseIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
-import { dataSourceAPI } from '../../services/dataSourceAPI';
-import DataSourceSelector from '../data-sources/DataSourceSelector';
+import { useNavigate } from 'react-router-dom';
+import { useDataSource } from '../../contexts/DataSourceContext';
 
 interface DataSourceSelectorProps {
-  value: number | null;
-  onChange: (dataSourceId: number | null) => void;
   required?: boolean;
-  fullWidth?: boolean;
   size?: 'small' | 'medium';
+  variant?: 'standard' | 'outlined' | 'filled';
+  showAddButton?: boolean;
+  showRequiredMessage?: boolean;
+  fullWidth?: boolean;
   label?: string;
   helperText?: string;
 }
 
-interface DataSource {
-  id: number;
-  name: string;
-  type: string;
-  is_active: boolean;
-}
-
-const DataSourceSelectorComponent: React.FC<DataSourceSelectorProps> = ({
-  value,
-  onChange,
+const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
   required = true,
-  fullWidth = true,
   size = 'medium',
+  variant = 'outlined',
+  showAddButton = true,
+  showRequiredMessage = true,
+  fullWidth = true,
   label = 'Data Source',
-  helperText,
+  helperText
 }) => {
-  const [dataSources, setDataSources] = useState<DataSource[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  const { 
+    selectedDataSource, 
+    setSelectedDataSource, 
+    dataSources, 
+    loading,
+    isConnected,
+    fetchDataSources
+  } = useDataSource();
 
-  const loadDataSources = async () => {
-    setLoading(true);
-    try {
-      const response = await dataSourceAPI.getDataSources();
-      setDataSources(response.data.filter((ds: DataSource) => ds.is_active));
-    } catch (error) {
-      console.error('Failed to load data sources:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (event: any) => {
+    const dataSourceId = event.target.value;
+    const dataSource = dataSources.find(ds => ds.id === dataSourceId);
+    setSelectedDataSource(dataSource || null);
   };
 
-  useEffect(() => {
-    loadDataSources();
-  }, []);
-
-  const handleChange = (event: SelectChangeEvent<number>) => {
-    const newValue = event.target.value as number;
-    onChange(newValue === 0 ? null : newValue);
+  const handleAddDataSource = () => {
+    navigate('/data-sources');
   };
 
-  const handleDataSourceCreated = () => {
-    loadDataSources();
-    setCreateDialogOpen(false);
-  };
-
-  const getTypeIcon = (type: string) => {
+  const getTypeColor = (type: string) => {
     const typeColors: Record<string, string> = {
       mysql: '#00758F',
       postgresql: '#336791',
@@ -88,78 +74,117 @@ const DataSourceSelectorComponent: React.FC<DataSourceSelectorProps> = ({
       cassandra: '#1287B6',
       rest_api: '#6BA644',
     };
-
-    return (
-      <Box
-        sx={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          backgroundColor: typeColors[type] || '#666',
-          mr: 1,
-        }}
-      />
-    );
+    return typeColors[type] || '#666';
   };
 
+  // Show warning if no data sources exist
+  if (!loading && dataSources.length === 0) {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        <AlertTitle>No Data Sources Found</AlertTitle>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          You need to connect to a data source before you can use SQL operations, table management, or data import features.
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleAddDataSource}
+          size="small"
+        >
+          Add Data Source
+        </Button>
+      </Alert>
+    );
+  }
+
+  // Show connection required message for operations that need it
+  if (required && showRequiredMessage && !isConnected && dataSources.length > 0) {
+    return (
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <AlertTitle>Data Source Required</AlertTitle>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Please select a data source to continue with this operation.
+        </Typography>
+        <DataSourceSelector 
+          required={false} 
+          showRequiredMessage={false}
+          showAddButton={showAddButton}
+        />
+      </Alert>
+    );
+  }
+
   return (
-    <>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <FormControl fullWidth={fullWidth} size={size} required={required}>
-          <InputLabel>{label}</InputLabel>
-          <Select
-            value={value || 0}
-            onChange={handleChange}
-            label={label}
-            disabled={loading}
-            startAdornment={<StorageIcon sx={{ mr: 1, color: 'action.active' }} />}
-          >
-            {!required && (
-              <MenuItem value={0}>
-                <em>None</em>
-              </MenuItem>
-            )}
-            {dataSources.map((ds) => (
-              <MenuItem key={ds.id} value={ds.id}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  {getTypeIcon(ds.type)}
-                  <Typography sx={{ flexGrow: 1 }}>{ds.name}</Typography>
-                  <Chip
-                    label={ds.type.toUpperCase()}
-                    size="small"
-                    sx={{ ml: 1, fontSize: '0.7rem' }}
-                  />
-                </Box>
-              </MenuItem>
-            ))}
-          </Select>
-          {helperText && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-              {helperText}
-            </Typography>
-          )}
-        </FormControl>
-        
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: required && !isConnected ? 2 : 0 }}>
+      <FormControl 
+        variant={variant} 
+        size={size} 
+        fullWidth={fullWidth}
+        error={required && !selectedDataSource}
+      >
+        <InputLabel>{label}</InputLabel>
+        <Select
+          value={selectedDataSource?.id || ''}
+          label={label}
+          onChange={handleChange}
+          disabled={loading}
+          startAdornment={<DatabaseIcon sx={{ mr: 1, color: 'action.active' }} />}
+        >
+          {dataSources.map((dataSource) => (
+            <MenuItem key={dataSource.id} value={dataSource.id}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: getTypeColor(dataSource.type),
+                  }}
+                />
+                <Typography variant="body2" sx={{ fontWeight: 'medium', flexGrow: 1 }}>
+                  {dataSource.name}
+                </Typography>
+                <Chip 
+                  label={dataSource.type.toUpperCase()} 
+                  size="small" 
+                  color="primary" 
+                  variant="outlined"
+                  sx={{ height: 20 }}
+                />
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+        {helperText && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+            {helperText}
+          </Typography>
+        )}
+      </FormControl>
+      
+      {showAddButton && (
         <Tooltip title="Add New Data Source">
-          <IconButton onClick={() => setCreateDialogOpen(true)} color="primary">
+          <IconButton
+            onClick={handleAddDataSource}
+            color="primary"
+            size={size}
+          >
             <AddIcon />
           </IconButton>
         </Tooltip>
-        
-        <Tooltip title="Refresh">
-          <IconButton onClick={loadDataSources} disabled={loading}>
-            <RefreshIcon />
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      <DataSourceSelector
-        open={createDialogOpen}
-        onClose={() => setCreateDialogOpen(false)}
-        onDataSourceCreated={handleDataSourceCreated}
-      />
-    </>
+      )}
+      
+      <Tooltip title="Refresh Data Sources">
+        <IconButton
+          onClick={fetchDataSources}
+          disabled={loading}
+          size={size}
+        >
+          <RefreshIcon />
+        </IconButton>
+      </Tooltip>
+    </Box>
   );
 };
 
-export default DataSourceSelectorComponent;
+export default DataSourceSelector;

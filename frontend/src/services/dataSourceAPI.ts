@@ -1,142 +1,100 @@
-import api from './api';
+import { sqlAPI, importAPI, exportAPI } from './api';
 
-export interface DataSource {
-  id: number;
-  name: string;
-  type: string;
-  connection_config: Record<string, any>;
-  extraction_config?: Record<string, any>;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  last_sync_at?: string;
-  description?: string;
+// This service provides helpful error messages when data source is not selected
+class DataSourceRequiredError extends Error {
+  constructor() {
+    super('Data source connection required. Please connect to a data source first before performing this operation.');
+    this.name = 'DataSourceRequiredError';
+  }
 }
 
-export interface SupportedDataSource {
-  type: string;
-  name: string;
-  category: string;
-  description: string;
-  supports_incremental: boolean;
-  supports_real_time: boolean;
-}
+// Higher-level API that validates data source selection
+export const createDataSourceAwareAPI = (getSelectedDataSourceId: () => number | null) => {
+  const requireDataSource = (): number => {
+    const dataSourceId = getSelectedDataSourceId();
+    if (!dataSourceId) {
+      throw new DataSourceRequiredError();
+    }
+    return dataSourceId;
+  };
 
-export interface ConnectionTestRequest {
-  type: string;
-  connection_config: Record<string, any>;
-}
+  return {
+    sql: {
+      executeQuery: (sql: string) => {
+        const dataSourceId = requireDataSource();
+        return sqlAPI.executeQuery(dataSourceId, sql);
+      },
+      
+      getTables: () => {
+        const dataSourceId = requireDataSource();
+        return sqlAPI.getTables(dataSourceId);
+      },
+      
+      getTableInfo: (tableName: string) => {
+        const dataSourceId = requireDataSource();
+        return sqlAPI.getTableInfo(dataSourceId, tableName);
+      },
+      
+      validateQuery: (sql: string) => {
+        const dataSourceId = requireDataSource();
+        return sqlAPI.validateQuery(dataSourceId, sql);
+      }
+    },
 
-export interface SchemaInfo {
-  name: string;
-  type: string;
-  columns?: Array<{
-    name: string;
-    type: string;
-    nullable: boolean;
-    primary_key?: boolean;
-  }>;
-  fields?: Array<{
-    name: string;
-    type: string;
-    nullable: boolean;
-  }>;
-  row_count?: number;
-  document_count?: number;
-  size?: number;
-}
+    import: {
+      uploadCSV: (file: File, tableName?: string, createTable: boolean = true, detectTypes: boolean = true) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.uploadCSV(dataSourceId, file, tableName, createTable, detectTypes);
+      },
 
-export interface DataPreview {
-  status: string;
-  columns: Array<{
-    name: string;
-    type: string;
-    sql_type: string;
-    null_count: number;
-    unique_count: number;
-  }>;
-  sample_data: Array<Record<string, any>>;
-  row_count: number;
-  error?: string;
-}
+      previewCSV: (file: File, tableName?: string, sampleSize: number = 10) => {
+        // CSV preview doesn't require data source
+        return importAPI.previewCSV(file, tableName, sampleSize);
+      },
 
-export interface ExtractionJob {
-  id: number;
-  data_source_id: number;
-  job_name: string;
-  extraction_mode: string;
-  source_query?: string;
-  target_table: string;
-  status: string;
-  records_processed: number;
-  error_message?: string;
-  started_at?: string;
-  completed_at?: string;
-  created_at: string;
-  config?: Record<string, any>;
-}
+      importCSVWithSQL: (file: File, createTableSQL: string, tableName: string, columnMapping?: Record<string, string>) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.importCSVWithSQL(dataSourceId, file, createTableSQL, tableName, columnMapping);
+      },
 
-export interface ExtractionJobCreate {
-  job_name: string;
-  extraction_mode: string;
-  source_query?: string;
-  target_table: string;
-  config?: Record<string, any>;
-}
+      uploadCSVBatch: (files: File[], createTable: boolean = true, detectTypes: boolean = true) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.uploadCSVBatch(dataSourceId, files, createTable, detectTypes);
+      },
 
-export const dataSourceAPI = {
-  // Get supported data source types
-  getSupportedDataSources: () => 
-    api.get<SupportedDataSource[]>('/data-sources/supported'),
+      importCSVWithConfig: (file: File, config: any) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.importCSVWithConfig(dataSourceId, file, config);
+      },
 
-  // Test connection to a data source
-  testConnection: (request: ConnectionTestRequest) =>
-    api.post('/data-sources/test-connection', request),
+      uploadExcel: (file: File, tableName?: string, sheetName?: string, importAllSheets: boolean = false, createTable: boolean = true, detectTypes: boolean = true) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.uploadExcel(dataSourceId, file, tableName, sheetName, importAllSheets, createTable, detectTypes);
+      },
 
-  // Get schema information from a data source
-  getSchema: (request: ConnectionTestRequest) =>
-    api.post<SchemaInfo[]>('/data-sources/schema', request),
+      previewExcel: (file: File, sheetName?: string, rows: number = 10) => {
+        // Excel preview doesn't require data source
+        return importAPI.previewExcel(file, sheetName, rows);
+      },
 
-  // Preview data from a source
-  previewData: (type: string, connection_config: Record<string, any>, source_name: string, limit = 100) =>
-    api.post<DataPreview>('/data-sources/preview', {
-      type,
-      connection_config,
-      source_name,
-      limit
-    }),
+      getExcelSheets: (file: File) => {
+        // Getting Excel sheets doesn't require data source
+        return importAPI.getExcelSheets(file);
+      },
 
-  // Get incremental extraction info
-  getIncrementalInfo: (type: string, connection_config: Record<string, any>, source_name: string) =>
-    api.post('/data-sources/incremental-info', {
-      type,
-      connection_config,
-      source_name
-    }),
+      importExcelWithSQL: (file: File, createTableSQL: string, tableName: string, sheetName?: string, columnMapping?: Record<string, string>) => {
+        const dataSourceId = requireDataSource();
+        return importAPI.importExcelWithSQL(dataSourceId, file, createTableSQL, tableName, sheetName, columnMapping);
+      }
+    },
 
-  // CRUD operations for data sources
-  getDataSources: (skip = 0, limit = 100) =>
-    api.get<DataSource[]>(`/data-sources/?skip=${skip}&limit=${limit}`),
-
-  createDataSource: (dataSource: Omit<DataSource, 'id' | 'created_at' | 'updated_at' | 'last_sync_at'>) =>
-    api.post<DataSource>('/data-sources/', dataSource),
-
-  getDataSource: (id: number) =>
-    api.get<DataSource>(`/data-sources/${id}`),
-
-  updateDataSource: (id: number, dataSource: Partial<DataSource>) =>
-    api.put<DataSource>(`/data-sources/${id}`, dataSource),
-
-  deleteDataSource: (id: number) =>
-    api.delete(`/data-sources/${id}`),
-
-  // Extraction jobs
-  extractData: (dataSourceId: number, job: ExtractionJobCreate) =>
-    api.post(`/data-sources/${dataSourceId}/extract`, job),
-
-  getExtractionJobs: (dataSourceId: number) =>
-    api.get<ExtractionJob[]>(`/data-sources/${dataSourceId}/jobs`),
-
-  getExtractionJob: (jobId: number) =>
-    api.get<ExtractionJob>(`/data-sources/jobs/${jobId}`)
+    export: {
+      exportData: (data: any) => {
+        // Export doesn't require data source as it works with already fetched data
+        return exportAPI.exportData(data);
+      }
+    }
+  };
 };
+
+export { DataSourceRequiredError };

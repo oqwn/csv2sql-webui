@@ -22,6 +22,7 @@ import {
   Storage as StorageIcon,
   Cable as CableIcon,
 } from '@mui/icons-material';
+import DataSourceSelector from './DataSourceSelector';
 
 const drawerWidth = 240;
 
@@ -110,6 +111,14 @@ const Layout: React.FC = () => {
             <Typography variant="h6" color="text.primary" sx={{ fontWeight: 500 }}>
               {menuItems.find(item => item.path === location.pathname)?.text || 'SQL WebUI'}
             </Typography>
+          </Box>
+          <Box sx={{ minWidth: 300 }}>
+            <DataSourceSelector 
+              required={false} 
+              size="small" 
+              showRequiredMessage={false}
+              showAddButton={true}
+            />
           </Box>
         </Toolbar>
       </AppBar>
