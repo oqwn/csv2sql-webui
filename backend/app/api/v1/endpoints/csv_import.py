@@ -38,9 +38,7 @@ async def preview_csv(
 ) -> Any:
     """Preview CSV file contents and get column type suggestions"""
     # Validate file
-    validation_result = validate_csv_file(file)
-    if not validation_result["valid"]:
-        raise HTTPException(status_code=400, detail=validation_result["error"])
+    validate_csv_file(file)
     
     contents = await file.read()
     df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
@@ -58,12 +56,13 @@ async def preview_csv(
         column_type, type_stats = detect_column_type(df[col])
         
         preview_info = build_column_preview_info(
-            col, column_type, df[col], type_stats
+            df[col], col, column_type
         )
         columns_info.append(preview_info)
     
     # Generate SQL
-    create_table_sql = generate_create_table_sql(table_name, columns_info)
+    column_types = {col_info['name']: col_info['suggested_type'] for col_info in columns_info}
+    create_table_sql = generate_create_table_sql(df, table_name, column_types)
     
     return {
         "table_name": table_name,
@@ -111,9 +110,7 @@ async def import_csv_with_sql(
         raise HTTPException(status_code=404, detail="Data source not found")
     
     # Validate file
-    validation_result = validate_csv_file(file)
-    if not validation_result["valid"]:
-        raise HTTPException(status_code=400, detail=validation_result["error"])
+    validate_csv_file(file)
     
     # Read CSV
     contents = await file.read()
@@ -194,14 +191,7 @@ async def upload_csv_batch(
     for file in files:
         try:
             # For now, just preview each file
-            validation_result = validate_csv_file(file)
-            if not validation_result["valid"]:
-                results.append({
-                    "filename": file.filename,
-                    "status": "error",
-                    "error": validation_result["error"]
-                })
-                continue
+            validate_csv_file(file)
             
             contents = await file.read()
             df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
@@ -259,9 +249,7 @@ async def import_csv_with_config(
     create_table_sql = f"CREATE TABLE {import_config.table_name} (\n    {',\n    '.join(column_defs)}\n)"
     
     # Use the import_with_sql endpoint logic
-    validation_result = validate_csv_file(file)
-    if not validation_result["valid"]:
-        raise HTTPException(status_code=400, detail=validation_result["error"])
+    validate_csv_file(file)
     
     contents = await file.read()
     df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
