@@ -3,6 +3,7 @@ from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 import pandas as pd
 import io
 import json
+from datetime import datetime, date
 
 from app.services.excel_importer import get_excel_sheets
 from app.services.csv_importer import generate_create_table_sql
@@ -169,9 +170,15 @@ async def import_excel_with_sql(
                 for val in row.values:
                     if pd.isna(val):
                         values.append("NULL")
+                    elif isinstance(val, bool):
+                        # PostgreSQL boolean values - check before numeric types
+                        values.append("TRUE" if val else "FALSE")
                     elif isinstance(val, str):
                         escaped_val = val.replace("'", "''")
                         values.append(f"'{escaped_val}'")
+                    elif isinstance(val, (pd.Timestamp, datetime, date)):
+                        # Format datetime values with quotes
+                        values.append(f"'{val}'")
                     else:
                         values.append(str(val))
                 values_list.append(f"({', '.join(values)})")
