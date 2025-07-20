@@ -1,7 +1,7 @@
-from typing import Any, List, Dict, Optional
+from typing import Any, List, Dict, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import json
 from datetime import datetime
 
@@ -71,9 +71,15 @@ class DataSourceResponse(BaseModel):
     extraction_config: Optional[Dict[str, Any]] = None
     description: Optional[str] = None
     is_active: bool
-    created_at: str
-    updated_at: str
-    last_sync_at: Optional[str] = None
+    created_at: Union[str, datetime]
+    updated_at: Union[str, datetime]
+    last_sync_at: Optional[Union[str, datetime]] = None
+
+    @field_validator('created_at', 'updated_at', 'last_sync_at', mode='before')
+    def convert_datetime_to_string(cls, v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
 
     class Config:
         from_attributes = True
@@ -89,10 +95,16 @@ class ExtractionJobResponse(BaseModel):
     status: str
     records_processed: int
     error_message: Optional[str] = None
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    created_at: str
+    started_at: Optional[Union[str, datetime]] = None
+    completed_at: Optional[Union[str, datetime]] = None
+    created_at: Union[str, datetime]
     config: Optional[Dict[str, Any]] = None
+
+    @field_validator('started_at', 'completed_at', 'created_at', mode='before')
+    def convert_datetime_to_string(cls, v):
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
 
     class Config:
         from_attributes = True
@@ -255,7 +267,7 @@ async def update_data_source(
     
     db.commit()
     db.refresh(db_data_source)
-    return DataSourceResponse.from_orm(db_data_source)
+    return DataSourceResponse.model_validate(db_data_source)
 
 
 @router.delete("/{data_source_id}")
