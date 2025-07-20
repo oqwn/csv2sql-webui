@@ -164,7 +164,12 @@ const TableManagerPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Failed to fetch table info:', err);
-      setError(err.response?.data?.detail || 'Failed to fetch table information');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || 'Failed to fetch table information');
+      }
     }
   };
 
@@ -203,7 +208,12 @@ const TableManagerPage: React.FC = () => {
         setTableInfo(prev => prev ? { ...prev, primary_key: response.data.primary_key } : null);
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to fetch table data');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || 'Failed to fetch table data');
+      }
       setTableData([]);
     } finally {
       setLoading(false);
@@ -302,7 +312,12 @@ const TableManagerPage: React.FC = () => {
       await fetchTableData();
     } catch (err: any) {
       console.error('Save dialog error:', err);
-      setError(err.response?.data?.detail || err.message || 'Failed to save record');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || err.message || 'Failed to save record');
+      }
     } finally {
       setLoading(false);
     }
@@ -330,7 +345,12 @@ const TableManagerPage: React.FC = () => {
       setDeleteDialogOpen(false);
       await fetchTableData();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete record');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || 'Failed to delete record');
+      }
     } finally {
       setLoading(false);
     }
@@ -350,7 +370,12 @@ const TableManagerPage: React.FC = () => {
       setTableInfo(null);
       await fetchTables();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete table');
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || 'Failed to delete table');
+      }
     } finally {
       setLoading(false);
     }

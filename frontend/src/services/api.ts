@@ -187,8 +187,14 @@ export const tableAPI = {
   getTableInfo: (dataSourceId: number, table_name: string) =>
     api.post('/sql/table-info', { data_source_id: dataSourceId, table_name }),
   
-  deleteTable: (dataSourceId: number, table_name: string) =>
-    api.delete(`/tables/table/${table_name}?data_source_id=${dataSourceId}`),
+  deleteTable: (dataSourceId: number, table_name: string) => {
+    const formData = new FormData();
+    formData.append('data_source_id', String(dataSourceId));
+    return api.delete(`/tables/table/${table_name}`, {
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
 };
 
 export default api;
