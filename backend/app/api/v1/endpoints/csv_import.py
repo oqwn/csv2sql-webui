@@ -62,7 +62,7 @@ async def preview_csv(
     
     # Generate SQL
     column_types = {col_info['name']: col_info['suggested_type'] for col_info in columns_info}
-    create_table_sql = generate_create_table_sql(df, table_name, column_types)
+    create_table_sql, _, _ = generate_create_table_sql(df, table_name, column_types)
     
     return {
         "table_name": table_name,
