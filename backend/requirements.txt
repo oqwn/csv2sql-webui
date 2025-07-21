@@ -24,3 +24,8 @@ elasticsearch==8.16.0
 cassandra-driver==3.29.2; python_version < '3.12'
 scylla-driver==3.26.6; python_version >= '3.12'
 kafka-python==2.1.0
+
+# New data sources
+pyarrow==18.1.0
+boto3==1.35.88
+requests==2.32.3

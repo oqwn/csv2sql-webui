@@ -11,6 +11,15 @@ try:
     from .cassandra_connector import CassandraConnector, CASSANDRA_AVAILABLE
 except ImportError:
     CASSANDRA_AVAILABLE = False
+from .json_connector import JSONConnector
+try:
+    from .parquet_connector import ParquetConnector, PYARROW_AVAILABLE
+except ImportError:
+    PYARROW_AVAILABLE = False
+try:
+    from .s3_connector import S3Connector, BOTO3_AVAILABLE
+except ImportError:
+    BOTO3_AVAILABLE = False
 from ..type_detection import detect_column_type
 from ..import_service import import_file_with_sql
 from sqlalchemy.orm import Session
@@ -40,6 +49,9 @@ class DataExtractionManager:
             'redis': RedisConnector,
             'elasticsearch': ElasticsearchConnector,
             
+            # File-based sources
+            'json': JSONConnector,
+            
             # Message queues
             'kafka': KafkaConnector,
             'rabbitmq': RabbitMQConnector,
@@ -48,9 +60,13 @@ class DataExtractionManager:
             'rest_api': APIConnector,
         }
         
-        # Add Cassandra connector only if available
+        # Add optional connectors only if dependencies are available
         if CASSANDRA_AVAILABLE:
             self.connectors['cassandra'] = CassandraConnector
+        if PYARROW_AVAILABLE:
+            self.connectors['parquet'] = ParquetConnector
+        if BOTO3_AVAILABLE:
+            self.connectors['s3'] = S3Connector
     
     def get_connector(self, data_source_type: str, connection_config: Dict[str, Any]) -> DataSourceConnector:
         """Get appropriate connector for data source type"""
@@ -417,10 +433,21 @@ class DataExtractionManager:
                 "required_fields": ["base_url"],
                 "optional_fields": ["auth_type", "token", "api_key", "api_key_header"],
                 "auth_note": "Supports Bearer token, API key, or no authentication"
+            },
+            {
+                "type": "json",
+                "name": "JSON Data Source",
+                "category": "file",
+                "description": "JSON files, URLs, or raw JSON data",
+                "supports_incremental": False,
+                "supports_real_time": False,
+                "required_fields": ["source_type"],
+                "optional_fields": ["file_path", "url", "raw_data", "headers", "encoding"],
+                "auth_note": "Supports file paths, HTTP URLs, or raw JSON input"
             }
         ]
         
-        # Add Cassandra if available
+        # Add optional connectors if available
         if CASSANDRA_AVAILABLE:
             sources.append({
                 "type": "cassandra",
@@ -432,6 +459,32 @@ class DataExtractionManager:
                 "required_fields": ["host"],
                 "optional_fields": ["username", "password", "port", "keyspace"],
                 "auth_note": "Authentication is optional for unsecured clusters"
+            })
+        
+        if PYARROW_AVAILABLE:
+            sources.append({
+                "type": "parquet",
+                "name": "Apache Parquet",
+                "category": "file",
+                "description": "Parquet columnar data files",
+                "supports_incremental": True,
+                "supports_real_time": False,
+                "required_fields": ["file_path"],
+                "optional_fields": ["columns", "row_groups"],
+                "auth_note": "Local file access only"
+            })
+        
+        if BOTO3_AVAILABLE:
+            sources.append({
+                "type": "s3",
+                "name": "Amazon S3",
+                "category": "cloud",
+                "description": "Amazon S3 cloud storage",
+                "supports_incremental": True,
+                "supports_real_time": False,
+                "required_fields": ["bucket_name"],
+                "optional_fields": ["aws_access_key_id", "aws_secret_access_key", "region_name", "prefix", "object_key"],
+                "auth_note": "Supports IAM roles, access keys, or default credentials"
             })
         
         return sources
