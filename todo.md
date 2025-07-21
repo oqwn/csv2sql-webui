@@ -167,7 +167,7 @@
 - [ ] Build NoSQL-specific UI components
 
 ## Recent Bug Fixes & Improvements (Latest)
-- [x] Fixed Python 3.13 compatibility issues with Cassandra driver
+- [x] Removed Cassandra data source (Python 3.13 compatibility issues)
 - [x] Resolved circular import issues between transformation modules
 - [x] Created centralized transformation types model
 - [x] Fixed frontend table selection data structure mismatch
@@ -176,6 +176,8 @@
 - [x] Removed problematic react-beautiful-dnd dependency
 - [x] Added React alias configuration to prevent duplicate instances
 - [x] Enhanced MenuItem children prop type safety
+- [x] Organized data sources by categories in architecture.md
+- [x] Added comprehensive data source categorization (Relational, NoSQL, Streaming, File-based, Cloud, APIs)
 
 ## Technical Debt & Optimization
 - [ ] Performance optimization

@@ -26,7 +26,6 @@ class DataSourceType(str, Enum):
     MONGODB = "mongodb"
     REDIS = "redis"
     ELASTICSEARCH = "elasticsearch"
-    CASSANDRA = "cassandra"
     HBASE = "hbase"
     
     # Message Queues

@@ -71,7 +71,6 @@ const DataSourceSelector: React.FC<DataSourceSelectorProps> = ({
       kafka: '#231F20',
       rabbitmq: '#FF6600',
       elasticsearch: '#005571',
-      cassandra: '#1287B6',
       rest_api: '#6BA644',
     };
     return typeColors[type] || '#666';

@@ -116,15 +116,6 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         verify_certs: true,
         api_key: ''
       },
-      cassandra: {
-        host: 'localhost',
-        port: 9042,
-        username: '',
-        password: '',
-        keyspace: '',
-        datacenter: '',
-        protocol_version: 4
-      },
       rest_api: {
         base_url: '',
         auth_type: 'none',
@@ -384,15 +375,6 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         { name: 'use_ssl', label: 'Use SSL', type: 'checkbox', required: false },
         { name: 'verify_certs', label: 'Verify Certificates', type: 'checkbox', required: false },
         { name: 'api_key', label: 'API Key', type: 'password', required: false }
-      ],
-      cassandra: [
-        { name: 'host', label: 'Host', type: 'text', required: true },
-        { name: 'port', label: 'Port', type: 'number', required: true },
-        { name: 'username', label: 'Username', type: 'text', required: false },
-        { name: 'password', label: 'Password', type: 'password', required: false },
-        { name: 'keyspace', label: 'Keyspace', type: 'text', required: false },
-        { name: 'datacenter', label: 'Datacenter', type: 'text', required: false },
-        { name: 'protocol_version', label: 'Protocol Version', type: 'number', required: false, helperText: 'Default: 4' }
       ],
       rest_api: [
         { name: 'base_url', label: 'Base URL', type: 'url', required: true },

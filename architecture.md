@@ -52,6 +52,37 @@ A comprehensive web-based SQL interface with data import/export capabilities, bu
 - **Message Queue**: RabbitMQ/Apache Kafka
 - **Object Storage**: MinIO/S3 (file uploads)
 
+### Data Sources (Categorized)
+
+#### Relational Databases
+- **PostgreSQL** - Full support with real-time sync
+- **MySQL** - Full support with binlog real-time sync
+- **SQLite** - Full support
+- **Microsoft SQL Server** - Full support
+- **Oracle** - Full support
+
+#### NoSQL Databases
+- **MongoDB** - Full support with change streams
+- **Redis** - Read-only support
+- **Elasticsearch** - Full support with search capabilities
+
+#### Message Queues & Streaming
+- **Apache Kafka** - Real-time streaming support
+- **RabbitMQ** - Real-time message consumption
+
+#### File-Based Sources
+- **CSV** - Import/export with type detection
+- **Excel** - Multi-sheet import/export
+- **JSON** - Single and multi-line JSON support
+- **Apache Parquet** - Columnar storage support (requires pyarrow)
+
+#### Cloud Storage
+- **Amazon S3** - Support for CSV, JSON, JSONL, Parquet files
+
+#### APIs
+- **REST API** - Generic REST endpoint consumption
+- **GraphQL** - Planned support
+
 ## Current System Architecture
 
 ```

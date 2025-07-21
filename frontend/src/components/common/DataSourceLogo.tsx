@@ -61,12 +61,6 @@ const DATA_SOURCE_LOGOS = {
     color: '#005571',
     name: 'Elasticsearch'
   },
-  cassandra: {
-    icon: '/logos/cassandra.svg',
-    fallback: '/logos/cassandra.png',
-    color: '#1287B1',
-    name: 'Cassandra'
-  },
 
   // Cloud Storage
   s3: {

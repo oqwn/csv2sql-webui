@@ -7,10 +7,6 @@ from .api_connector import APIConnector
 from .kafka_connector import KafkaConnector
 from .rabbitmq_connector import RabbitMQConnector
 from .elasticsearch_connector import ElasticsearchConnector
-try:
-    from .cassandra_connector import CassandraConnector, CASSANDRA_AVAILABLE
-except ImportError:
-    CASSANDRA_AVAILABLE = False
 from .json_connector import JSONConnector
 try:
     from .parquet_connector import ParquetConnector, PYARROW_AVAILABLE
@@ -61,8 +57,6 @@ class DataExtractionManager:
         }
         
         # Add optional connectors only if dependencies are available
-        if CASSANDRA_AVAILABLE:
-            self.connectors['cassandra'] = CassandraConnector
         if PYARROW_AVAILABLE:
             self.connectors['parquet'] = ParquetConnector
         if BOTO3_AVAILABLE:
@@ -448,18 +442,6 @@ class DataExtractionManager:
         ]
         
         # Add optional connectors if available
-        if CASSANDRA_AVAILABLE:
-            sources.append({
-                "type": "cassandra",
-                "name": "Apache Cassandra",
-                "category": "nosql",
-                "description": "Cassandra distributed database",
-                "supports_incremental": True,
-                "supports_real_time": False,
-                "required_fields": ["host"],
-                "optional_fields": ["username", "password", "port", "keyspace"],
-                "auth_note": "Authentication is optional for unsecured clusters"
-            })
         
         if PYARROW_AVAILABLE:
             sources.append({
