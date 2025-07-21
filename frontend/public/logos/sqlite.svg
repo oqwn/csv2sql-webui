@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official SQLite Logo Style -->
+  <defs>
+    <linearGradient id="sqlite-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#003B57"/>
+      <stop offset="100%" stop-color="#0056A3"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- SQLite feather logo -->
+  <path fill="url(#sqlite-blue)" d="M16 4c-1.5 0-3 .5-4 1.5L8 9.5c-1 1-1.5 2.5-1.5 4v5c0 1.5.5 3 1.5 4L12 26.5c1 1 2.5 1.5 4 1.5s3-.5 4-1.5L24 22.5c1-1 1.5-2.5 1.5-4v-5c0-1.5-.5-3-1.5-4L20 5.5c-1-1-2.5-1.5-4-1.5z"/>
+  
+  <!-- Feather detail -->
+  <path fill="white" stroke="#003B57" stroke-width="0.5" d="M16 8v16M12 12h8M12 16h8M12 20h8"/>
+  
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="4" font-weight="bold" fill="#003B57">SQLite</text>
+</svg>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- CSV File Icon -->
+  <defs>
+    <linearGradient id="csv-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#217346"/>
+      <stop offset="100%" stop-color="#1A5D38"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Document shape -->
+  <path fill="url(#csv-green)" d="M6 4h16l4 4v20H6V4z"/>
+  <path fill="white" d="M22 4v4h4"/>
+  
+  <!-- CSV table representation -->
+  <rect x="8" y="10" width="16" height="2" fill="white" opacity="0.8"/>
+  <rect x="8" y="13" width="16" height="2" fill="white" opacity="0.6"/>
+  <rect x="8" y="16" width="16" height="2" fill="white" opacity="0.8"/>
+  <rect x="8" y="19" width="16" height="2" fill="white" opacity="0.6"/>
+  
+  <!-- Column separators -->
+  <path stroke="white" stroke-width="0.5" d="M14 10v12M20 10v12"/>
+  
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" font-weight="bold" fill="#217346">CSV</text>
+</svg>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official MongoDB Logo - Leaf Design -->
+  <defs>
+    <linearGradient id="mongodb-green" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#47A248"/>
+      <stop offset="50%" stop-color="#4DB33D"/>
+      <stop offset="100%" stop-color="#3FA940"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- MongoDB Leaf -->
+  <path fill="url(#mongodb-green)" d="M16 2C14.5 2 13.2 3.2 12.8 4.7c-.8 3.2.2 6.5 2.4 8.9.4.4.6.9.6 1.4v11c0 1.1.9 2 2 2h.4c1.1 0 2-.9 2-2V15c0-.5.2-1 .6-1.4 2.2-2.4 3.2-5.7 2.4-8.9C22.8 3.2 21.5 2 16 2z"/>
+  
+  <!-- Leaf detail lines -->
+  <path fill="none" stroke="#2E7D32" stroke-width="0.5" d="M16 4v24M13 8c1 1 2 2 3 2s2-1 3-2M13 12c1 1 2 2 3 2s2-1 3-2M13 16c1 1 2 2 3 2s2-1 3-2"/>
+  
+  <!-- MongoDB text -->
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="4" font-weight="normal" fill="#47A248">MongoDB</text>
+</svg>

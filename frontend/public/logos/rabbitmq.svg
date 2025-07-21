@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official RabbitMQ Logo -->
+  <defs>
+    <linearGradient id="rabbitmq-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6600"/>
+      <stop offset="100%" stop-color="#E55A00"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- RabbitMQ rabbit head -->
+  <ellipse cx="16" cy="14" rx="10" ry="8" fill="url(#rabbitmq-orange)"/>
+  
+  <!-- Rabbit ears -->
+  <ellipse cx="12" cy="8" rx="2" ry="4" fill="url(#rabbitmq-orange)"/>
+  <ellipse cx="20" cy="8" rx="2" ry="4" fill="url(#rabbitmq-orange)"/>
+  
+  <!-- Eyes -->
+  <circle cx="13" cy="13" r="1" fill="white"/>
+  <circle cx="19" cy="13" r="1" fill="white"/>
+  
+  <!-- Nose -->
+  <circle cx="16" cy="16" r="0.5" fill="white"/>
+  
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="3" font-weight="bold" fill="#FF6600">RabbitMQ</text>
+</svg>

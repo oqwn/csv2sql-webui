@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="4" fill="#000000"/>
+  <path fill="white" d="M8 10h2v2H8zm0 4h2v2H8zm0 4h2v2H8z"/>
+  <path fill="white" d="M12 10h12v2H12zm0 4h8v2h-8zm0 4h10v2H12z"/>
+  <path fill="white" d="M6 8c-1 0-2 1-2 2v12c0 1 1 2 2 2h20c1 0 2-1 2-2V10c0-1-1-2-2-2H6zm0 2h20v12H6V10z"/>
+  <path fill="#FFD700" d="M14 12h6v1h-6zm0 3h4v1h-4zm0 3h5v1h-5z"/>
+  <text x="16" y="30" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#000">JSON</text>
+</svg>

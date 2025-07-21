@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="4" fill="#50ABF1"/>
+  <path fill="white" d="M4 8h24v2H4zm0 4h24v2H4zm0 4h24v2H4zm0 4h24v2H4z"/>
+  <path fill="#003366" d="M8 10h2v12H8zm6 0h2v12h-2zm6 0h2v12h-2zm6 0h2v12h-2z"/>
+  <path fill="white" d="M6 6h20c1.1 0 2 .9 2 2v16c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V8c0-1.1.9-2 2-2zm0 2v16h20V8H6z"/>
+  <text x="16" y="30" text-anchor="middle" font-family="Arial" font-size="5" font-weight="bold" fill="#50ABF1">PARQUET</text>
+</svg>

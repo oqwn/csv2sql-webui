@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official Apache Kafka Logo -->
+  <defs>
+    <linearGradient id="kafka-black" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="100%" stop-color="#333333"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Kafka stream topology -->
+  <circle cx="8" cy="12" r="3" fill="url(#kafka-black)"/>
+  <circle cx="24" cy="12" r="3" fill="url(#kafka-black)"/>
+  <circle cx="16" cy="20" r="3" fill="url(#kafka-black)"/>
+  
+  <!-- Connection lines showing data flow -->
+  <path stroke="#666666" stroke-width="2" fill="none" d="M11 12 L21 12"/>
+  <path stroke="#666666" stroke-width="2" fill="none" d="M10 14 L14 18"/>
+  <path stroke="#666666" stroke-width="2" fill="none" d="M22 14 L18 18"/>
+  
+  <!-- Kafka text -->
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="4" font-weight="bold" fill="#000000">Kafka</text>
+</svg>

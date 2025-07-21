@@ -20,6 +20,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { dataSourceAPI, SupportedDataSource, ConnectionTestRequest } from '../../services/dataSourceAPI';
+import DataSourceLogo from '../common/DataSourceLogo';
 
 interface Props {
   open: boolean;
@@ -447,12 +448,21 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
                     onClick={() => handleSourceSelect(source)}
                   >
                     <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        {source.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {source.description}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <DataSourceLogo 
+                          type={source.type} 
+                          size={48}
+                          category={source.category}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" gutterBottom>
+                            {source.name}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {source.description}
+                          </Typography>
+                        </Box>
+                      </Box>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
                         <Chip
                           label={source.category}

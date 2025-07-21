@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official MySQL Dolphin Logo Style -->
+  <defs>
+    <linearGradient id="mysql-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F29111"/>
+      <stop offset="100%" stop-color="#E68900"/>
+    </linearGradient>
+    <linearGradient id="mysql-blue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4479A1"/>
+      <stop offset="100%" stop-color="#336B8A"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- MySQL Dolphin Shape -->
+  <path fill="url(#mysql-blue)" d="M4 16c0-6.627 5.373-12 12-12s12 5.373 12 12-5.373 12-12 12S4 22.627 4 16z"/>
+  
+  <!-- Dolphin body -->
+  <path fill="url(#mysql-orange)" d="M8 14c2-2 4-3 7-3s5 1 7 3c1 1 2 3 2 5s-1 4-2 5c-2 2-4 3-7 3s-5-1-7-3c-1-1-2-3-2-5s1-4 2-5z"/>
+  
+  <!-- MySQL text styling -->
+  <text x="16" y="12" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" font-weight="bold" fill="white">My</text>
+  <text x="16" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="6" font-weight="bold" fill="url(#mysql-orange)">SQL</text>
+</svg>

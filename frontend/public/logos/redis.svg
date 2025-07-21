@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <!-- Official Redis Logo Style -->
+  <defs>
+    <linearGradient id="redis-red" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DC382D"/>
+      <stop offset="100%" stop-color="#B92D23"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Redis cube/database stack -->
+  <rect x="4" y="8" width="24" height="6" rx="3" fill="url(#redis-red)"/>
+  <rect x="4" y="13" width="24" height="6" rx="3" fill="url(#redis-red)" opacity="0.8"/>
+  <rect x="4" y="18" width="24" height="6" rx="3" fill="url(#redis-red)" opacity="0.6"/>
+  
+  <!-- Redis speed lines -->
+  <path stroke="white" stroke-width="1" fill="none" d="M8 11h16M8 16h12M8 21h14"/>
+  
+  <!-- Redis text -->
+  <text x="16" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" font-weight="bold" fill="#DC382D">Redis</text>
+</svg>

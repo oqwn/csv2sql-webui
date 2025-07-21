@@ -15,6 +15,7 @@ import {
 import CodeEditor from '@uiw/react-textarea-code-editor';
 import { dataSourceService } from '../../services/api';
 import { tableService } from '../../services/api';
+import DataSourceLogo from '../common/DataSourceLogo';
 
 interface Props {
   value: any;
@@ -99,7 +100,10 @@ const DataSourceSelector: React.FC<Props> = ({ value, onChange }) => {
             >
               {dataSources.map((ds) => (
                 <MenuItem key={ds.id} value={ds.id}>
-                  {ds.name}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <DataSourceLogo type={ds.type} size={24} />
+                    <span>{ds.name}</span>
+                  </Box>
                 </MenuItem>
               ))}
             </Select>

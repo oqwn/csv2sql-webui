@@ -44,6 +44,7 @@ import {
 import DataSourceSelector from '../components/data-sources/DataSourceSelector';
 import { dataSourceAPI, DataSource, SchemaInfo, DataPreview } from '../services/dataSourceAPI';
 import { useDataSource } from '../contexts/DataSourceContext';
+import DataSourceLogo from '../components/common/DataSourceLogo';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -318,25 +319,31 @@ const DataSourcesPage: React.FC = () => {
                   <Card>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <Box>
-                          <Typography variant="h6" gutterBottom>
-                            {dataSource.name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {dataSource.description}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-                            <Chip
-                              label={dataSource.type}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
-                            <Chip
-                              label={dataSource.is_active ? 'Active' : 'Inactive'}
-                              size="small"
-                              color={getStatusColor(dataSource.is_active)}
-                            />
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
+                          <DataSourceLogo 
+                            type={dataSource.type}
+                            size={56}
+                          />
+                          <Box>
+                            <Typography variant="h6" gutterBottom>
+                              {dataSource.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              {dataSource.description}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                              <Chip
+                                label={dataSource.type}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                              <Chip
+                                label={dataSource.is_active ? 'Active' : 'Inactive'}
+                                size="small"
+                                color={getStatusColor(dataSource.is_active)}
+                              />
+                            </Box>
                           </Box>
                         </Box>
                         <CardActions>

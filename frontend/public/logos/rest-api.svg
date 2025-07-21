@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="4" fill="#61DAFB"/>
+  <path fill="white" d="M8 12h16v2H8zm0 4h12v2H8zm0 4h14v2H8z"/>
+  <circle cx="6" cy="13" r="1" fill="white"/>
+  <circle cx="6" cy="17" r="1" fill="white"/>
+  <circle cx="6" cy="21" r="1" fill="white"/>
+  <path fill="white" d="M4 8h24c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V10c0-1.1.9-2 2-2zm0 2v12h24V10H4z"/>
+  <path fill="#0366D6" d="M26 14l-2-2v1h-3v2h3v1z"/>
+  <text x="16" y="30" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#61DAFB">API</text>
+</svg>
