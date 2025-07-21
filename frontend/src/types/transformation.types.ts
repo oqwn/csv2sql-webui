@@ -137,7 +137,8 @@ export interface TransformationPipeline {
     table_name?: string;
     format?: 'csv' | 'excel';
     filename?: string;
-    if_exists?: 'replace' | 'append' | 'fail';
+    if_exists?: 'replace' | 'append' | 'upsert' | 'merge' | 'fail';
+    primary_key_columns?: string[];
   };
   created_at?: string;
   updated_at?: string;
@@ -167,7 +168,8 @@ export interface TransformationExecuteRequest {
     table_name?: string;
     format?: 'csv' | 'excel';
     filename?: string;
-    if_exists?: 'replace' | 'append' | 'fail';
+    if_exists?: 'replace' | 'append' | 'upsert' | 'merge' | 'fail';
+    primary_key_columns?: string[];
   };
   execute_async?: boolean;
 }

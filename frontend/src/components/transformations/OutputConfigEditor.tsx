@@ -11,6 +11,8 @@ import {
   FormControlLabel,
   Radio,
   Alert,
+  Chip,
+  FormHelperText,
 } from '@mui/material';
 import { dataSourceService } from '../../services/api';
 
@@ -28,6 +30,7 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
   );
   const [tableName, setTableName] = useState(value?.table_name || '');
   const [ifExists, setIfExists] = useState(value?.if_exists || 'replace');
+  const [primaryKeyColumns, setPrimaryKeyColumns] = useState<string[]>(value?.primary_key_columns || []);
   const [exportFormat, setExportFormat] = useState(value?.format || 'csv');
   const [filename, setFilename] = useState(value?.filename || '');
 
@@ -37,7 +40,7 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
 
   useEffect(() => {
     updateConfig();
-  }, [outputType, targetDataSource, tableName, ifExists, exportFormat, filename]);
+  }, [outputType, targetDataSource, tableName, ifExists, primaryKeyColumns, exportFormat, filename]);
 
   const loadDataSources = async () => {
     try {
@@ -55,6 +58,7 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
         datasource_id: targetDataSource,
         table_name: tableName,
         if_exists: ifExists,
+        ...((['upsert', 'merge'].includes(ifExists) && primaryKeyColumns.length > 0) && { primary_key_columns: primaryKeyColumns }),
       });
     } else if (outputType === 'export') {
       onChange({
@@ -115,10 +119,40 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
               >
                 <MenuItem value="replace">Replace (Drop and recreate)</MenuItem>
                 <MenuItem value="append">Append (Add new rows)</MenuItem>
+                <MenuItem value="upsert">Upsert (Update or insert)</MenuItem>
+                <MenuItem value="merge">Merge (Advanced update logic)</MenuItem>
                 <MenuItem value="fail">Fail (Show error)</MenuItem>
               </Select>
             </FormControl>
           </Grid>
+          {(['upsert', 'merge'].includes(ifExists)) && (
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Primary Key Columns (for upsert/merge)</InputLabel>
+                <Select
+                  multiple
+                  value={primaryKeyColumns}
+                  onChange={(e) => setPrimaryKeyColumns(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+                  label="Primary Key Columns (for upsert/merge)"
+                  renderValue={(selected) => (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {selected.map((value) => (
+                        <Chip key={value} label={value} size="small" />
+                      ))}
+                    </Box>
+                  )}
+                >
+                  {/* Will be populated with actual column names from source data */}
+                  <MenuItem value="id">id</MenuItem>
+                  <MenuItem value="username">username</MenuItem>
+                  <MenuItem value="email">email</MenuItem>
+                </Select>
+                <FormHelperText>
+                  Select columns that uniquely identify records. Leave empty to auto-detect.
+                </FormHelperText>
+              </FormControl>
+            </Grid>
+          )}
         </Grid>
       ) : (
         <Grid container spacing={2}>
