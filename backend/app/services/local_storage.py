@@ -8,12 +8,13 @@ import threading
 from app.core.config import settings
 
 class LocalStorage:
-    """Local file-based storage for data sources and extraction jobs"""
+    """Local file-based storage for data sources, extraction jobs, and transformation pipelines"""
     
     def __init__(self, storage_dir: str = None):
         self.storage_dir = Path(storage_dir or settings.DATA_DIR)
         self.data_sources_file = self.storage_dir / "data_sources.json"
         self.extraction_jobs_file = self.storage_dir / "extraction_jobs.json"
+        self.transformation_pipelines_file = self.storage_dir / "transformation_pipelines.json"
         self._lock = threading.Lock()
         
         # Create storage directory if it doesn't exist
@@ -24,6 +25,8 @@ class LocalStorage:
             self._write_json(self.data_sources_file, [])
         if not self.extraction_jobs_file.exists():
             self._write_json(self.extraction_jobs_file, [])
+        if not self.transformation_pipelines_file.exists():
+            self._write_json(self.transformation_pipelines_file, [])
     
     def _read_json(self, file_path: Path) -> List[Dict[str, Any]]:
         """Read JSON data from file"""
@@ -165,6 +168,56 @@ class LocalStorage:
         """Clear all data (for testing purposes)"""
         self._write_json(self.data_sources_file, [])
         self._write_json(self.extraction_jobs_file, [])
+        self._write_json(self.transformation_pipelines_file, [])
+    
+    # Transformation Pipeline methods
+    def get_transformation_pipelines(self) -> List[Dict[str, Any]]:
+        """Get all transformation pipelines"""
+        pipelines = self._read_json(self.transformation_pipelines_file)
+        # Sort by updated_at descending
+        pipelines.sort(key=lambda x: x.get('updated_at', ''), reverse=True)
+        return pipelines
+    
+    def get_transformation_pipeline(self, pipeline_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific transformation pipeline by ID"""
+        pipelines = self._read_json(self.transformation_pipelines_file)
+        for pipeline in pipelines:
+            if pipeline.get('id') == pipeline_id:
+                return pipeline
+        return None
+    
+    def save_transformation_pipeline(self, pipeline: Dict[str, Any]) -> Dict[str, Any]:
+        """Save or update a transformation pipeline"""
+        pipelines = self._read_json(self.transformation_pipelines_file)
+        
+        # Check if pipeline exists
+        existing_index = None
+        for i, p in enumerate(pipelines):
+            if p.get('id') == pipeline.get('id'):
+                existing_index = i
+                break
+        
+        if existing_index is not None:
+            # Update existing pipeline
+            pipelines[existing_index] = pipeline
+        else:
+            # Add new pipeline
+            pipelines.append(pipeline)
+        
+        self._write_json(self.transformation_pipelines_file, pipelines)
+        return pipeline
+    
+    def delete_transformation_pipeline(self, pipeline_id: str) -> bool:
+        """Delete a transformation pipeline"""
+        pipelines = self._read_json(self.transformation_pipelines_file)
+        
+        for i, pipeline in enumerate(pipelines):
+            if pipeline.get('id') == pipeline_id:
+                pipelines.pop(i)
+                self._write_json(self.transformation_pipelines_file, pipelines)
+                return True
+        
+        return False
 
 
 # Global instance

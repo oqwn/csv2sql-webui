@@ -211,7 +211,7 @@ const SQLEditorPage: React.FC = () => {
     setResult(null);
     
     try {
-      const response = await sqlAPI.executeQuery(queryToExecute);
+      const response = await sqlAPI.executeQuery(selectedDataSource!.id, queryToExecute);
       // Store the query in the result for success message detection
       setResult({...response.data, executedQuery: queryToExecute});
       
@@ -239,7 +239,7 @@ const SQLEditorPage: React.FC = () => {
 
   const fetchTableColumns = async (tableName: string) => {
     try {
-      const response = await sqlAPI.getTableColumns(tableName);
+      const response = await sqlAPI.getTableInfo(selectedDataSource!.id, tableName);
       setTableColumns(response.data.columns || []);
     } catch (err) {
       console.error('Failed to fetch table columns:', err);
@@ -1133,7 +1133,7 @@ const SQLEditorPage: React.FC = () => {
                     if (tableName) {
                       await fetchTableColumns(tableName);
                       // Auto-populate ALL columns for better UX
-                      const response = await sqlAPI.getTableColumns(tableName);
+                      const response = await sqlAPI.getTableInfo(selectedDataSource!.id, tableName);
                       const columns = response.data.columns || [];
                       
                       if (columns.length > 0) {
@@ -1877,6 +1877,7 @@ const SQLEditorPage: React.FC = () => {
             onClose={() => setShowColumnConfigDialog(false)}
             file={uploadFiles[0]}
             tableName={importTableName || uploadFiles[0]?.name.replace(/\.(csv|xlsx|xls)$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_')}
+            currentDataSourceId={selectedDataSource!.id}
             onImport={async () => {
               setShowColumnConfigDialog(false);
               clearFileQueue();
@@ -1944,6 +1945,7 @@ const SQLEditorPage: React.FC = () => {
             open={showBatchPreviewDialog}
             onClose={() => setShowBatchPreviewDialog(false)}
             files={uploadFiles.filter(f => f.name.endsWith('.csv') || f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))}
+            currentDataSourceId={selectedDataSource!.id}
             onImport={async () => {
               setShowBatchPreviewDialog(false);
               clearFileQueue();

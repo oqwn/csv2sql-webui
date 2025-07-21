@@ -55,6 +55,7 @@ interface Props {
   file: File;
   tableName: string;
   onImport: () => void;
+  currentDataSourceId: number;
 }
 
 const SQL_TYPES = [
@@ -81,6 +82,7 @@ const CSVColumnConfigDialog: React.FC<Props> = ({
   file,
   tableName,
   onImport,
+  currentDataSourceId,
 }) => {
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<CSVPreview | null>(null);
@@ -147,7 +149,7 @@ const CSVColumnConfigDialog: React.FC<Props> = ({
     setImporting(true);
     setError('');
     try {
-      await importAPI.importCSVWithConfig(file, {
+      await importAPI.importCSVWithConfig(currentDataSourceId!, file, {
         table_name: tableName,
         columns: columnConfigs,
       });

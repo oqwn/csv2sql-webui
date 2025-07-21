@@ -200,4 +200,40 @@ export const tableAPI = {
     api.post('/tables/tables/batch-delete', { data_source_id: dataSourceId, table_names }),
 };
 
+// Data source service
+export const dataSourceService = {
+  listDataSources: async () => {
+    const response = await api.get('/data-sources');
+    return response.data;
+  },
+  createDataSource: async (data: any) => {
+    const response = await api.post('/data-sources', data);
+    return response.data;
+  },
+  updateDataSource: async (id: number, data: any) => {
+    const response = await api.put(`/data-sources/${id}`, data);
+    return response.data;
+  },
+  deleteDataSource: async (id: number) => {
+    const response = await api.delete(`/data-sources/${id}`);
+    return response.data;
+  },
+  testConnection: async (data: any) => {
+    const response = await api.post('/data-sources/test-connection', data);
+    return response.data;
+  },
+};
+
+// Table service
+export const tableService = {
+  getTables: async (dataSourceId: number) => {
+    const response = await sqlAPI.getTables(dataSourceId);
+    return response.data;
+  },
+  getTableInfo: async (dataSourceId: number, tableName: string) => {
+    const response = await sqlAPI.getTableInfo(dataSourceId, tableName);
+    return response.data;
+  },
+};
+
 export default api;

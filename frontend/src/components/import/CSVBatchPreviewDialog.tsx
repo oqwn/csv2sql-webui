@@ -66,6 +66,7 @@ interface Props {
   onClose: () => void;
   files: File[];
   onImport: () => void;
+  currentDataSourceId: number;
 }
 
 const CSVBatchPreviewDialog: React.FC<Props> = ({
@@ -73,6 +74,7 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
   onClose,
   files,
   onImport,
+  currentDataSourceId,
 }) => {
   const [filePreviews, setFilePreviews] = useState<FilePreview[]>([]);
   const [importing, setImporting] = useState(false);
@@ -165,20 +167,20 @@ const CSVBatchPreviewDialog: React.FC<Props> = ({
         
         if (fp.customSQL) {
           // Execute the CREATE TABLE SQL first
-          await sqlAPI.executeQuery(fp.customSQL);
+          await sqlAPI.executeQuery(currentDataSourceId!, fp.customSQL);
           
           // Then import the data into the created table
           if (isExcel) {
-            return importAPI.uploadExcel(fp.file, fp.tableName, undefined, false, false, false);
+            return importAPI.uploadExcel(currentDataSourceId!, fp.file, fp.tableName, undefined, false, false, false);
           } else {
-            return importAPI.uploadCSV(fp.file, fp.tableName, false, false);
+            return importAPI.uploadCSV(currentDataSourceId!, fp.file, fp.tableName, false, false);
           }
         } else {
           // Standard import with auto-detection
           if (isExcel) {
-            return importAPI.uploadExcel(fp.file, fp.tableName, undefined, false, true, true);
+            return importAPI.uploadExcel(currentDataSourceId!, fp.file, fp.tableName, undefined, false, true, true);
           } else {
-            return importAPI.uploadCSV(fp.file, fp.tableName, true, true);
+            return importAPI.uploadCSV(currentDataSourceId!, fp.file, fp.tableName, true, true);
           }
         }
       });

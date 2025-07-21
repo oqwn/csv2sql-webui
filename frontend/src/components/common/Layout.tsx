@@ -21,6 +21,7 @@ import {
   TableChart as TableChartIcon,
   Storage as StorageIcon,
   Cable as CableIcon,
+  Transform as TransformIcon,
 } from '@mui/icons-material';
 import DataSourceSelector from './DataSourceSelector';
 
@@ -41,6 +42,7 @@ const Layout: React.FC = () => {
     { text: 'Table Manager', icon: <TableChartIcon />, path: '/tables' },
     { text: 'SQL Editor', icon: <CodeIcon />, path: '/sql-editor' },
     { text: 'Import Data', icon: <CloudUploadIcon />, path: '/sql-editor?tab=import' },
+    { text: 'Transformations', icon: <TransformIcon />, path: '/transformations' },
   ];
 
   const drawer = (
