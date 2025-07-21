@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FormControl,
   InputLabel,
@@ -16,15 +16,31 @@ import {
 } from '@mui/material';
 import { dataSourceService } from '../../services/api';
 
+interface DataSource {
+  id: number;
+  name: string;
+  type: string;
+}
+
+interface OutputConfig {
+  type: 'table' | 'export';
+  datasource_id?: number;
+  table_name?: string;
+  format?: 'csv' | 'excel';
+  filename?: string;
+  if_exists?: 'replace' | 'append' | 'upsert' | 'merge' | 'fail';
+  primary_key_columns?: string[];
+}
+
 interface Props {
-  value: any;
-  onChange: (value: any) => void;
+  value?: OutputConfig;
+  onChange: (value: OutputConfig) => void;
   sourceDataSourceId?: number;
 }
 
 const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSourceId }) => {
   const [outputType, setOutputType] = useState(value?.type || 'table');
-  const [dataSources, setDataSources] = useState<any[]>([]);
+  const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [targetDataSource, setTargetDataSource] = useState(
     value?.datasource_id || sourceDataSourceId || ''
   );
@@ -34,28 +50,11 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
   const [exportFormat, setExportFormat] = useState(value?.format || 'csv');
   const [filename, setFilename] = useState(value?.filename || '');
 
-  useEffect(() => {
-    loadDataSources();
-  }, []);
-
-  useEffect(() => {
-    updateConfig();
-  }, [outputType, targetDataSource, tableName, ifExists, primaryKeyColumns, exportFormat, filename]);
-
-  const loadDataSources = async () => {
-    try {
-      const response = await dataSourceService.listDataSources();
-      setDataSources(response);
-    } catch (error) {
-      console.error('Failed to load data sources:', error);
-    }
-  };
-
-  const updateConfig = () => {
+  const updateConfig = useCallback(() => {
     if (outputType === 'table') {
       onChange({
         type: 'table',
-        datasource_id: targetDataSource,
+        datasource_id: typeof targetDataSource === 'number' ? targetDataSource : undefined,
         table_name: tableName,
         if_exists: ifExists,
         ...((['upsert', 'merge'].includes(ifExists) && primaryKeyColumns.length > 0) && { primary_key_columns: primaryKeyColumns }),
@@ -67,14 +66,31 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
         filename: filename,
       });
     }
+  }, [outputType, targetDataSource, tableName, ifExists, primaryKeyColumns, exportFormat, filename, onChange]);
+
+  const loadDataSources = async () => {
+    try {
+      const response = await dataSourceService.listDataSources();
+      setDataSources(response);
+    } catch (error) {
+      console.error('Failed to load data sources:', error);
+    }
   };
+
+  useEffect(() => {
+    loadDataSources();
+  }, []);
+
+  useEffect(() => {
+    updateConfig();
+  }, [updateConfig]);
 
   return (
     <Box>
       <RadioGroup
         row
         value={outputType}
-        onChange={(e) => setOutputType(e.target.value)}
+        onChange={(e) => setOutputType(e.target.value as 'table' | 'export')}
         sx={{ mb: 3 }}
       >
         <FormControlLabel value="table" control={<Radio />} label="Save to Table" />
@@ -114,7 +130,7 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
               <InputLabel>If Table Exists</InputLabel>
               <Select
                 value={ifExists}
-                onChange={(e) => setIfExists(e.target.value)}
+                onChange={(e) => setIfExists(e.target.value as 'replace' | 'append' | 'upsert' | 'merge' | 'fail')}
                 label="If Table Exists"
               >
                 <MenuItem value="replace">Replace (Drop and recreate)</MenuItem>
@@ -161,7 +177,7 @@ const OutputConfigEditor: React.FC<Props> = ({ value, onChange, sourceDataSource
               <InputLabel>Export Format</InputLabel>
               <Select
                 value={exportFormat}
-                onChange={(e) => setExportFormat(e.target.value)}
+                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'excel')}
                 label="Export Format"
               >
                 <MenuItem value="csv">CSV</MenuItem>
