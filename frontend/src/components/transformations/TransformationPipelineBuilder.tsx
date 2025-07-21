@@ -20,7 +20,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import PreviewIcon from '@mui/icons-material/Preview';
 import SaveIcon from '@mui/icons-material/Save';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+// import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { TransformationPipeline, TransformationStep, TransformationType } from '../../types/transformation.types';
 import TransformationStepEditor from './TransformationStepEditor';
 import DataSourceSelector from './DataSourceSelector';
@@ -100,13 +100,10 @@ const TransformationPipelineBuilder: React.FC<Props> = ({
     setEditingStepIndex(-1);
   };
 
-  const handleDragEnd = (result: any) => {
-    if (!result.destination) return;
-
+  const handleMoveStep = (fromIndex: number, toIndex: number) => {
     const items = Array.from(steps);
-    const [reorderedItem] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, reorderedItem);
-
+    const [reorderedItem] = items.splice(fromIndex, 1);
+    items.splice(toIndex, 0, reorderedItem);
     setSteps(items);
   };
 
@@ -270,54 +267,54 @@ const TransformationPipelineBuilder: React.FC<Props> = ({
               No transformation steps added yet. Click on a transformation type above to add one.
             </Alert>
           ) : (
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="steps">
-                {(provided) => (
-                  <Box {...provided.droppableProps} ref={provided.innerRef}>
-                    {steps.map((step, index) => (
-                      <Draggable key={index} draggableId={`step-${index}`} index={index}>
-                        {(provided, snapshot) => (
-                          <Card
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            sx={{
-                              mb: 2,
-                              backgroundColor: snapshot.isDragging ? 'action.hover' : 'background.paper',
-                            }}
-                          >
-                            <CardContent>
-                              <Box display="flex" alignItems="center">
-                                <Box {...provided.dragHandleProps} sx={{ mr: 2 }}>
-                                  <DragIndicatorIcon color="action" />
-                                </Box>
-                                <Box flex={1}>
-                                  <Typography variant="subtitle1">
-                                    {step.name}
-                                  </Typography>
-                                  <Chip
-                                    label={step.type}
-                                    size="small"
-                                    color="primary"
-                                    sx={{ mt: 1 }}
-                                  />
-                                </Box>
-                                <IconButton onClick={() => handleEditStep(index)}>
-                                  <EditIcon />
-                                </IconButton>
-                                <IconButton onClick={() => handleDeleteStep(index)}>
-                                  <DeleteIcon />
-                                </IconButton>
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </Box>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <Box>
+              {steps.map((step, index) => (
+                <Card key={index} sx={{ mb: 2 }}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center">
+                      <Box sx={{ mr: 2 }}>
+                        <DragIndicatorIcon color="action" />
+                      </Box>
+                      <Box flex={1}>
+                        <Typography variant="subtitle1">
+                          {step.name}
+                        </Typography>
+                        <Chip
+                          label={step.type}
+                          size="small"
+                          color="primary"
+                          sx={{ mt: 1 }}
+                        />
+                      </Box>
+                      {index > 0 && (
+                        <IconButton 
+                          onClick={() => handleMoveStep(index, index - 1)}
+                          size="small"
+                          title="Move Up"
+                        >
+                          ⬆️
+                        </IconButton>
+                      )}
+                      {index < steps.length - 1 && (
+                        <IconButton 
+                          onClick={() => handleMoveStep(index, index + 1)}
+                          size="small"
+                          title="Move Down"
+                        >
+                          ⬇️
+                        </IconButton>
+                      )}
+                      <IconButton onClick={() => handleEditStep(index)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton onClick={() => handleDeleteStep(index)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              ))}
+            </Box>
           )}
 
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>

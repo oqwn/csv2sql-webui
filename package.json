@@ -1,0 +1,19 @@
+{
+  "name": "csv2sql-webui",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "pnpm": {
+    "overrides": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    }
+  },
+  "scripts": {
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "test": "pnpm --filter frontend test"
+  }
+}

@@ -34,7 +34,7 @@ interface DataSourceProviderProps {
   children: React.ReactNode;
 }
 
-export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children }) => {
+const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children }) => {
   const [selectedDataSource, setSelectedDataSource] = useState<DataSource | null>(null);
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(false);
@@ -113,3 +113,5 @@ export const DataSourceProvider: React.FC<DataSourceProviderProps> = ({ children
     </DataSourceContext.Provider>
   );
 };
+
+export { DataSourceProvider };

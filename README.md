@@ -27,22 +27,26 @@ A powerful web-based SQL management tool with CSV/Excel import/export, batch sch
 ### Running with Docker
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd csv2sql-webui
 ```
 
 2. Create environment files:
+
 ```bash
 cp backend/.env.example backend/.env
 ```
 
 3. Start the application:
+
 ```bash
 docker-compose up -d
 ```
 
 4. Access the application:
+
 - Frontend: http://localhost
 - Backend API: http://localhost:8000
 - API Documentation: http://localhost:8000/docs
@@ -51,10 +55,12 @@ docker-compose up -d
 
 #### Backend Development
 
+On Windows: venv\Scripts\activate
+
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
@@ -82,6 +88,7 @@ docker-compose exec backend python -m app.scripts.create_admin
 ```
 
 Or via API:
+
 ```bash
 curl -X POST "http://localhost:8000/api/v1/users/" \
   -H "Content-Type: application/json" \
@@ -123,6 +130,7 @@ csv2sql-webui/
 ## API Documentation
 
 Once the backend is running, you can access the interactive API documentation at:
+
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
