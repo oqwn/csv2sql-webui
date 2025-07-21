@@ -10,147 +10,15 @@ from app.services.local_storage import local_storage
 from app.services.sql_executor import DataSourceSQLExecutor
 from app.services.transformation_engine import TransformationEngine
 from app.services.cross_datasource_engine import CrossDataSourceEngine
+from app.models.transformation_types import (
+    TransformationType, FilterOperator, AggregateFunction, JoinType,
+    CleaningRule, FilterRule, AggregationConfig, JoinConfig,
+    ColumnSplitConfig, ColumnMergeConfig, TypeConversionConfig,
+    CustomScriptConfig, TransformationStep, TransformationPipeline,
+    TransformationPreviewRequest, TransformationExecuteRequest
+)
 
 router = APIRouter()
-
-
-class TransformationType(str, Enum):
-    FILTER = "filter"
-    CLEAN = "clean"
-    AGGREGATE = "aggregate"
-    JOIN = "join"
-    SPLIT_COLUMN = "split_column"
-    MERGE_COLUMN = "merge_column"
-    CUSTOM_SQL = "custom_sql"
-    CUSTOM_PYTHON = "custom_python"
-    TYPE_CONVERSION = "type_conversion"
-    RENAME = "rename"
-    DROP = "drop"
-    FILL_NULL = "fill_null"
-
-
-class FilterOperator(str, Enum):
-    EQUALS = "="
-    NOT_EQUALS = "!="
-    GREATER_THAN = ">"
-    LESS_THAN = "<"
-    GREATER_EQUAL = ">="
-    LESS_EQUAL = "<="
-    IN = "in"
-    NOT_IN = "not_in"
-    CONTAINS = "contains"
-    NOT_CONTAINS = "not_contains"
-    STARTS_WITH = "starts_with"
-    ENDS_WITH = "ends_with"
-    IS_NULL = "is_null"
-    NOT_NULL = "not_null"
-
-
-class AggregateFunction(str, Enum):
-    SUM = "sum"
-    COUNT = "count"
-    COUNT_DISTINCT = "count_distinct"
-    AVG = "avg"
-    MIN = "min"
-    MAX = "max"
-    MEDIAN = "median"
-    STD = "std"
-    VAR = "var"
-
-
-class JoinType(str, Enum):
-    INNER = "inner"
-    LEFT = "left"
-    RIGHT = "right"
-    FULL = "full"
-    CROSS = "cross"
-
-
-class CleaningRule(BaseModel):
-    column: str
-    rule_type: str = Field(..., description="trim, remove_special, lowercase, uppercase, remove_numbers, etc.")
-    parameters: Optional[Dict[str, Any]] = None
-
-
-class FilterRule(BaseModel):
-    column: str
-    operator: FilterOperator
-    value: Optional[Union[str, int, float, List[Any]]] = None
-    case_sensitive: bool = False
-
-
-class AggregationConfig(BaseModel):
-    group_by: List[str]
-    aggregations: List[Dict[str, str]]  # {"column": "amount", "function": "sum", "alias": "total_amount"}
-    having: Optional[List[FilterRule]] = None
-
-
-class JoinConfig(BaseModel):
-    left_source: Dict[str, Any]  # {"datasource_id": 1, "table": "users"}
-    right_source: Dict[str, Any]  # {"datasource_id": 2, "table": "orders"}
-    join_type: JoinType
-    join_conditions: List[Dict[str, str]]  # [{"left": "id", "right": "user_id"}]
-
-
-class ColumnSplitConfig(BaseModel):
-    column: str
-    delimiter: Optional[str] = None
-    pattern: Optional[str] = None  # regex pattern
-    new_columns: List[str]
-    keep_original: bool = False
-
-
-class ColumnMergeConfig(BaseModel):
-    columns: List[str]
-    separator: str = " "
-    new_column: str
-    drop_original: bool = True
-
-
-class TypeConversionConfig(BaseModel):
-    column: str
-    target_type: str  # "integer", "float", "string", "date", "datetime", "boolean"
-    format: Optional[str] = None  # for date/datetime conversions
-    default_value: Optional[Any] = None  # for failed conversions
-
-
-class CustomScriptConfig(BaseModel):
-    script_type: str = Field(..., description="python or sql")
-    script: str
-    parameters: Optional[Dict[str, Any]] = None
-
-
-class TransformationStep(BaseModel):
-    id: Optional[str] = None
-    name: str
-    type: TransformationType
-    config: Dict[str, Any]
-    description: Optional[str] = None
-
-
-class TransformationPipeline(BaseModel):
-    id: Optional[str] = None
-    name: str
-    description: Optional[str] = None
-    source_config: Dict[str, Any]  # datasource_id, table_name or query
-    steps: List[TransformationStep]
-    output_config: Optional[Dict[str, Any]] = None  # save to table, export, etc.
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-
-
-class TransformationPreviewRequest(BaseModel):
-    source_config: Dict[str, Any]
-    steps: List[TransformationStep]
-    preview_rows: int = 100
-
-
-class TransformationExecuteRequest(BaseModel):
-    pipeline_id: Optional[str] = None
-    source_config: Optional[Dict[str, Any]] = None
-    steps: Optional[List[TransformationStep]] = None
-    output_config: Dict[str, Any]
-    execute_async: bool = False
 
 
 @router.post("/pipelines")

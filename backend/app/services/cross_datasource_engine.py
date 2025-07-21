@@ -5,7 +5,7 @@ from datetime import datetime
 from app.services.local_storage import local_storage
 from app.services.sql_executor import DataSourceSQLExecutor
 from app.services.transformation_engine import TransformationEngine
-from app.api.v1.endpoints.transformations import (
+from app.models.transformation_types import (
     TransformationType, TransformationStep, JoinConfig, JoinType
 )
 

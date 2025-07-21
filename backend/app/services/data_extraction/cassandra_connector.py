@@ -6,12 +6,18 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+CASSANDRA_AVAILABLE = False
+Cluster = None
+PlainTextAuthProvider = None
+DCAwareRoundRobinPolicy = None
+
 try:
     from cassandra.cluster import Cluster
     from cassandra.auth import PlainTextAuthProvider
     from cassandra.policies import DCAwareRoundRobinPolicy
     CASSANDRA_AVAILABLE = True
-except ImportError:
+except Exception:
+    # Catch all exceptions, not just ImportError
     CASSANDRA_AVAILABLE = False
 
 
@@ -19,12 +25,12 @@ class CassandraConnector(DataSourceConnector):
     """Connector for Apache Cassandra distributed database"""
     
     def __init__(self, connection_config: Dict[str, Any]):
+        if not CASSANDRA_AVAILABLE:
+            raise ImportError("Cassandra driver is not available. This might be due to Python 3.12+ compatibility issues.")
+        
         super().__init__(connection_config)
         self.cluster = None
         self.session = None
-        
-        if not CASSANDRA_AVAILABLE:
-            raise ImportError("cassandra-driver is required for Cassandra connections. Install with: pip install cassandra-driver")
     
     async def connect(self) -> bool:
         """Test connection to Cassandra cluster."""

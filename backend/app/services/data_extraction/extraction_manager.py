@@ -7,7 +7,10 @@ from .api_connector import APIConnector
 from .kafka_connector import KafkaConnector
 from .rabbitmq_connector import RabbitMQConnector
 from .elasticsearch_connector import ElasticsearchConnector
-from .cassandra_connector import CassandraConnector
+try:
+    from .cassandra_connector import CassandraConnector, CASSANDRA_AVAILABLE
+except ImportError:
+    CASSANDRA_AVAILABLE = False
 from ..type_detection import detect_column_type
 from ..import_service import import_file_with_sql
 from sqlalchemy.orm import Session
@@ -36,7 +39,6 @@ class DataExtractionManager:
             'mongodb': MongoDBConnector,
             'redis': RedisConnector,
             'elasticsearch': ElasticsearchConnector,
-            'cassandra': CassandraConnector,
             
             # Message queues
             'kafka': KafkaConnector,
@@ -45,6 +47,10 @@ class DataExtractionManager:
             # APIs
             'rest_api': APIConnector,
         }
+        
+        # Add Cassandra connector only if available
+        if CASSANDRA_AVAILABLE:
+            self.connectors['cassandra'] = CassandraConnector
     
     def get_connector(self, data_source_type: str, connection_config: Dict[str, Any]) -> DataSourceConnector:
         """Get appropriate connector for data source type"""
@@ -323,7 +329,7 @@ class DataExtractionManager:
     
     def get_supported_data_sources(self) -> List[Dict[str, Any]]:
         """Get list of supported data sources"""
-        return [
+        sources = [
             {
                 "type": "mysql",
                 "name": "MySQL",
@@ -402,17 +408,6 @@ class DataExtractionManager:
                 "auth_note": "Supports multiple auth methods: username/password, API key, or no auth"
             },
             {
-                "type": "cassandra",
-                "name": "Apache Cassandra",
-                "category": "nosql",
-                "description": "Cassandra distributed database",
-                "supports_incremental": True,
-                "supports_real_time": False,
-                "required_fields": ["host"],
-                "optional_fields": ["username", "password", "port", "keyspace"],
-                "auth_note": "Authentication is optional for unsecured clusters"
-            },
-            {
                 "type": "rest_api",
                 "name": "REST API",
                 "category": "api",
@@ -424,3 +419,19 @@ class DataExtractionManager:
                 "auth_note": "Supports Bearer token, API key, or no authentication"
             }
         ]
+        
+        # Add Cassandra if available
+        if CASSANDRA_AVAILABLE:
+            sources.append({
+                "type": "cassandra",
+                "name": "Apache Cassandra",
+                "category": "nosql",
+                "description": "Cassandra distributed database",
+                "supports_incremental": True,
+                "supports_real_time": False,
+                "required_fields": ["host"],
+                "optional_fields": ["username", "password", "port", "keyspace"],
+                "auth_note": "Authentication is optional for unsecured clusters"
+            })
+        
+        return sources

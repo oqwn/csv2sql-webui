@@ -1167,7 +1167,7 @@ const SQLEditorPage: React.FC = () => {
                 >
                   {tables.map((table) => (
                     <MenuItem key={table} value={table}>
-                      {table}
+                      {table || 'Unknown Table'}
                     </MenuItem>
                   ))}
                 </TextField>

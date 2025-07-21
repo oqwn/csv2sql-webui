@@ -8,7 +8,7 @@ from datetime import datetime
 import sqlparse
 from io import StringIO
 
-from app.api.v1.endpoints.transformations import (
+from app.models.transformation_types import (
     TransformationType, TransformationStep, FilterRule, FilterOperator,
     AggregationConfig, ColumnSplitConfig, ColumnMergeConfig, 
     TypeConversionConfig, CleaningRule
