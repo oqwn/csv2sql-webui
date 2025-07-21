@@ -65,7 +65,8 @@ const DataSourceSelector: React.FC<Props> = ({ value, onChange }) => {
   const loadTables = async () => {
     try {
       const response = await tableService.getTables(selectedDataSource);
-      setTables(response?.tables?.map((t: any) => t.name) || []);
+      // Response is directly an array of table objects
+      setTables(Array.isArray(response) ? response.map((t: any) => t.name) : []);
     } catch (error) {
       console.error('Failed to load tables:', error);
       setTables([]);

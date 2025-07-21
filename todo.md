@@ -60,14 +60,17 @@
   - [x] Full extraction with chunking support
   - [x] Make password fields optional for data source connections
   - [x] Support connecting without database to list available databases
-- [ ] Data Transformation
-  - [ ] Data filtering and cleaning rules
-  - [ ] Data type conversions and format standardization
-  - [ ] Aggregation operations (sum/count/group by)
-  - [ ] Join operations across data sources
-  - [ ] Column splitting and merging
-  - [ ] Custom transformation scripts (Python/SQL)
-  - [ ] Data validation and quality checks
+- [x] Data Transformation
+  - [x] Data filtering and cleaning rules
+  - [x] Data type conversions and format standardization
+  - [x] Aggregation operations (sum/count/group by)
+  - [x] Join operations across data sources
+  - [x] Column splitting and merging
+  - [x] Custom transformation scripts (Python/SQL)
+  - [x] Data validation and quality checks
+  - [x] Visual transformation pipeline builder
+  - [x] Step-by-step transformation editor
+  - [x] Real-time transformation preview
 - [ ] Data Loading
   - [ ] Append mode (add new records)
   - [ ] Overwrite mode (replace all data)
@@ -162,6 +165,17 @@
 - [ ] Add Redis command support
 - [ ] Create query translation layer
 - [ ] Build NoSQL-specific UI components
+
+## Recent Bug Fixes & Improvements (Latest)
+- [x] Fixed Python 3.13 compatibility issues with Cassandra driver
+- [x] Resolved circular import issues between transformation modules
+- [x] Created centralized transformation types model
+- [x] Fixed frontend table selection data structure mismatch
+- [x] Added null safety checks for API responses
+- [x] Improved component export patterns
+- [x] Removed problematic react-beautiful-dnd dependency
+- [x] Added React alias configuration to prevent duplicate instances
+- [x] Enhanced MenuItem children prop type safety
 
 ## Technical Debt & Optimization
 - [ ] Performance optimization
