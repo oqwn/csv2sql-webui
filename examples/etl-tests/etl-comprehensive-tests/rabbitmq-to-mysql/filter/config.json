@@ -1,0 +1,35 @@
+{
+  "source": {
+    "type": "rabbitmq",
+    "connection": "rabbitmq_connection_string"
+  },
+  "target": {
+    "type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "database": "source_db",
+    "username": "root",
+    "password": "password",
+    "table": "sample_data"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

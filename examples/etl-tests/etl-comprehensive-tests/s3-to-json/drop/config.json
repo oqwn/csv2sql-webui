@@ -1,0 +1,21 @@
+{
+  "source": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "target": {
+    "type": "json",
+    "connection": "json_connection_string"
+  },
+  "transformation": {
+    "type": "drop",
+    "config": "drop_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

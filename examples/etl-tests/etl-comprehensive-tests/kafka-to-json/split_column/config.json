@@ -1,0 +1,23 @@
+{
+  "source": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "target": {
+    "type": "json",
+    "connection": "json_connection_string"
+  },
+  "transformation": {
+    "type": "split_column",
+    "config": "split_column_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

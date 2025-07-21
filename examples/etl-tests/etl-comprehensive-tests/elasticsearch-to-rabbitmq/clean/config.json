@@ -1,0 +1,28 @@
+{
+  "source": {
+    "type": "elasticsearch",
+    "connection": "elasticsearch_connection_string"
+  },
+  "target": {
+    "type": "rabbitmq",
+    "connection": "rabbitmq_connection_string"
+  },
+  "transformation": {
+    "type": "clean",
+    "operations": [
+      {
+        "column": "name",
+        "operation": "trim"
+      },
+      {
+        "column": "email",
+        "operation": "lowercase"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

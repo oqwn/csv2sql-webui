@@ -1,0 +1,31 @@
+{
+  "source": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "target": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "transformation": {
+    "type": "type_conversion",
+    "conversions": [
+      {
+        "column": "date_str",
+        "to_type": "date",
+        "format": "%Y-%m-%d"
+      },
+      {
+        "column": "amount_str",
+        "to_type": "float"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

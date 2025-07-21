@@ -1,0 +1,34 @@
+{
+  "source": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "target": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

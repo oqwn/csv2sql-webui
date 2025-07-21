@@ -1,0 +1,33 @@
+{
+  "source": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "target": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "transformation": {
+    "type": "type_conversion",
+    "conversions": [
+      {
+        "column": "date_str",
+        "to_type": "date",
+        "format": "%Y-%m-%d"
+      },
+      {
+        "column": "amount_str",
+        "to_type": "float"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

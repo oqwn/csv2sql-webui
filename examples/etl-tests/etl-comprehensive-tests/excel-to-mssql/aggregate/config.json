@@ -1,0 +1,33 @@
+{
+  "source": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "target": {
+    "type": "mssql",
+    "connection": "mssql_connection_string"
+  },
+  "transformation": {
+    "type": "aggregate",
+    "group_by": [
+      "category"
+    ],
+    "aggregations": [
+      {
+        "column": "amount",
+        "function": "sum",
+        "alias": "total_amount"
+      },
+      {
+        "column": "id",
+        "function": "count",
+        "alias": "count"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

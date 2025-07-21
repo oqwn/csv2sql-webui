@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "name": "John Doe",
+    "email": "john@example.com",
+    "category": "A",
+    "amount": 150.5
+  },
+  {
+    "id": 2,
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "category": "B",
+    "amount": 200.0
+  },
+  {
+    "id": 3,
+    "name": "Bob Johnson",
+    "email": "bob@example.com",
+    "category": "A",
+    "amount": 75.25
+  }
+]

@@ -1,0 +1,19 @@
+{
+  "source": {
+    "type": "rabbitmq",
+    "connection": "rabbitmq_connection_string"
+  },
+  "target": {
+    "type": "oracle",
+    "connection": "oracle_connection_string"
+  },
+  "transformation": {
+    "type": "custom_python",
+    "config": "custom_python_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

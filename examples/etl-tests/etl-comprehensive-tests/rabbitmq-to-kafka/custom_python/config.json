@@ -1,0 +1,23 @@
+{
+  "source": {
+    "type": "rabbitmq",
+    "connection": "rabbitmq_connection_string"
+  },
+  "target": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "transformation": {
+    "type": "custom_python",
+    "config": "custom_python_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

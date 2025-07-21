@@ -1,0 +1,29 @@
+{
+  "source": {
+    "type": "parquet",
+    "connection": "parquet_connection_string"
+  },
+  "target": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "parquet",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

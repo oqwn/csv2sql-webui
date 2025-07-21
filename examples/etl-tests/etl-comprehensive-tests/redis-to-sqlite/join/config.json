@@ -1,0 +1,27 @@
+{
+  "source": {
+    "type": "redis",
+    "connection": "redis_connection_string"
+  },
+  "target": {
+    "type": "sqlite",
+    "connection": "sqlite_connection_string"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "redis",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

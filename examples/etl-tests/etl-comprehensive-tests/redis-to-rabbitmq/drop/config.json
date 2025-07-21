@@ -1,0 +1,19 @@
+{
+  "source": {
+    "type": "redis",
+    "connection": "redis_connection_string"
+  },
+  "target": {
+    "type": "rabbitmq",
+    "connection": "rabbitmq_connection_string"
+  },
+  "transformation": {
+    "type": "drop",
+    "config": "drop_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

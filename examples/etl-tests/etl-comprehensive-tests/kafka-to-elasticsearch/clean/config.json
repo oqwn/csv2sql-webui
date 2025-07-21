@@ -1,0 +1,32 @@
+{
+  "source": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "target": {
+    "type": "elasticsearch",
+    "connection": "elasticsearch_connection_string"
+  },
+  "transformation": {
+    "type": "clean",
+    "operations": [
+      {
+        "column": "name",
+        "operation": "trim"
+      },
+      {
+        "column": "email",
+        "operation": "lowercase"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

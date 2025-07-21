@@ -1,0 +1,22 @@
+{
+  "source": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "target": {
+    "type": "elasticsearch",
+    "connection": "elasticsearch_connection_string"
+  },
+  "transformation": {
+    "type": "merge_column",
+    "config": "merge_column_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

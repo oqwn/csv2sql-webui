@@ -1,0 +1,26 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "transformation": {
+    "type": "merge_column",
+    "config": "merge_column_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

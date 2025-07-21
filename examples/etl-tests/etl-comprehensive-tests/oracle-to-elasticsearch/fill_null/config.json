@@ -1,0 +1,19 @@
+{
+  "source": {
+    "type": "oracle",
+    "connection": "oracle_connection_string"
+  },
+  "target": {
+    "type": "elasticsearch",
+    "connection": "elasticsearch_connection_string"
+  },
+  "transformation": {
+    "type": "fill_null",
+    "config": "fill_null_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

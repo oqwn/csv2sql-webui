@@ -1,0 +1,6 @@
+id,name,email,category,amount,date,status
+1,John Doe,john@example.com,A,150.50,2024-01-15,active
+2,Jane Smith,jane@example.com,B,200.00,2024-01-16,active
+3,Bob Johnson,bob@example.com,A,75.25,2024-01-17,inactive
+4,Alice Brown,alice@example.com,C,300.00,2024-01-18,active
+5,Charlie Wilson,charlie@example.com,B,125.75,2024-01-19,active

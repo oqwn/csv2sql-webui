@@ -1,0 +1,21 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "transformation": {
+    "type": "rename",
+    "config": "rename_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source": {
+    "type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "database": "source_db",
+    "username": "root",
+    "password": "password",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "transformation": {
+    "type": "custom_python",
+    "config": "custom_python_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

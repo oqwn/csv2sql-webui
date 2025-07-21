@@ -1,0 +1,24 @@
+{
+  "source": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "sqlite",
+    "connection": "sqlite_connection_string"
+  },
+  "transformation": {
+    "type": "custom_python",
+    "config": "custom_python_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "mssql",
+    "connection": "mssql_connection_string"
+  },
+  "transformation": {
+    "type": "clean",
+    "operations": [
+      {
+        "column": "name",
+        "operation": "trim"
+      },
+      {
+        "column": "email",
+        "operation": "lowercase"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

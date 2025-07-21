@@ -1,0 +1,31 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "mongodb",
+    "connection_string": "mongodb://localhost:27017/",
+    "database": "source_db",
+    "collection": "sample_data"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "csv",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

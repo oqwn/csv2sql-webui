@@ -1,0 +1,35 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

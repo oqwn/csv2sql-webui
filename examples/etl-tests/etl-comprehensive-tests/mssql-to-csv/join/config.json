@@ -1,0 +1,29 @@
+{
+  "source": {
+    "type": "mssql",
+    "connection": "mssql_connection_string"
+  },
+  "target": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "mssql",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

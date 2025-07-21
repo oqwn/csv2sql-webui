@@ -1,0 +1,35 @@
+{
+  "source": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "postgresql",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

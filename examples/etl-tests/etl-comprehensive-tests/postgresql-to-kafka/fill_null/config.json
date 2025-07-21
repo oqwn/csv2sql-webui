@@ -1,0 +1,28 @@
+{
+  "source": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "kafka",
+    "bootstrap_servers": "localhost:9092",
+    "topics": [
+      "sample_topic"
+    ],
+    "group_id": "etl_test_group"
+  },
+  "transformation": {
+    "type": "fill_null",
+    "config": "fill_null_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

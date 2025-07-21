@@ -1,0 +1,19 @@
+{
+  "source": {
+    "type": "excel",
+    "connection": "excel_connection_string"
+  },
+  "target": {
+    "type": "parquet",
+    "connection": "parquet_connection_string"
+  },
+  "transformation": {
+    "type": "split_column",
+    "config": "split_column_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

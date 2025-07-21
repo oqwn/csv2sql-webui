@@ -1,0 +1,32 @@
+{
+  "source": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "target": {
+    "type": "sqlite",
+    "connection": "sqlite_connection_string"
+  },
+  "transformation": {
+    "type": "type_conversion",
+    "conversions": [
+      {
+        "column": "date_str",
+        "to_type": "date",
+        "format": "%Y-%m-%d"
+      },
+      {
+        "column": "amount_str",
+        "to_type": "float"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

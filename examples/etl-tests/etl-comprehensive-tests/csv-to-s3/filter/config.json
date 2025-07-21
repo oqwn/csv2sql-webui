@@ -1,0 +1,34 @@
+{
+  "source": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "target": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source": {
+    "type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "database": "source_db",
+    "username": "root",
+    "password": "password",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "transformation": {
+    "type": "rename",
+    "config": "rename_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

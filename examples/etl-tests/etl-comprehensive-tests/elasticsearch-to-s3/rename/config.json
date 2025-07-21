@@ -1,0 +1,21 @@
+{
+  "source": {
+    "type": "elasticsearch",
+    "connection": "elasticsearch_connection_string"
+  },
+  "target": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "transformation": {
+    "type": "rename",
+    "config": "rename_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

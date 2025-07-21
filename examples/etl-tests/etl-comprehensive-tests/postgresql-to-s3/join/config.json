@@ -1,0 +1,34 @@
+{
+  "source": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "postgresql",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

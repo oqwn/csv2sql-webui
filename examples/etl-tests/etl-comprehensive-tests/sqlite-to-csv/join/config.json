@@ -1,0 +1,29 @@
+{
+  "source": {
+    "type": "sqlite",
+    "connection": "sqlite_connection_string"
+  },
+  "target": {
+    "type": "csv",
+    "file_path": "sample_data.csv",
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "sqlite",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

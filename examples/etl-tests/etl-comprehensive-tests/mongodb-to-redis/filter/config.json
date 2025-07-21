@@ -1,0 +1,32 @@
+{
+  "source": {
+    "type": "mongodb",
+    "connection_string": "mongodb://localhost:27017/",
+    "database": "source_db",
+    "collection": "sample_data"
+  },
+  "target": {
+    "type": "redis",
+    "connection": "redis_connection_string"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

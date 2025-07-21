@@ -1,0 +1,39 @@
+{
+  "source": {
+    "type": "mysql",
+    "host": "localhost",
+    "port": 3306,
+    "database": "source_db",
+    "username": "root",
+    "password": "password",
+    "table": "sample_data"
+  },
+  "target": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "transformation": {
+    "type": "type_conversion",
+    "conversions": [
+      {
+        "column": "date_str",
+        "to_type": "date",
+        "format": "%Y-%m-%d"
+      },
+      {
+        "column": "amount_str",
+        "to_type": "float"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

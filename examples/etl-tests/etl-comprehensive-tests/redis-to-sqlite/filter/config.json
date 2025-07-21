@@ -1,0 +1,30 @@
+{
+  "source": {
+    "type": "redis",
+    "connection": "redis_connection_string"
+  },
+  "target": {
+    "type": "sqlite",
+    "connection": "sqlite_connection_string"
+  },
+  "transformation": {
+    "type": "filter",
+    "rules": [
+      {
+        "column": "status",
+        "operator": "equals",
+        "value": "active"
+      },
+      {
+        "column": "amount",
+        "operator": "greater_than",
+        "value": 100
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

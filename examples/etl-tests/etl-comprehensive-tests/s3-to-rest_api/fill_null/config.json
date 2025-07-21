@@ -1,0 +1,24 @@
+{
+  "source": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "target": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "transformation": {
+    "type": "fill_null",
+    "config": "fill_null_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

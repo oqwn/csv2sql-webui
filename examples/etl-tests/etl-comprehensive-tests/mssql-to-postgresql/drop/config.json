@@ -1,0 +1,24 @@
+{
+  "source": {
+    "type": "mssql",
+    "connection": "mssql_connection_string"
+  },
+  "target": {
+    "type": "postgresql",
+    "host": "localhost",
+    "port": 5432,
+    "database": "source_db",
+    "username": "postgres",
+    "password": "postgres",
+    "table": "sample_data"
+  },
+  "transformation": {
+    "type": "drop",
+    "config": "drop_specific_config"
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

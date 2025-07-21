@@ -1,0 +1,33 @@
+{
+  "source": {
+    "type": "s3",
+    "bucket": "etl-test-bucket",
+    "prefix": "data/",
+    "region": "us-east-1"
+  },
+  "target": {
+    "type": "mongodb",
+    "connection_string": "mongodb://localhost:27017/",
+    "database": "source_db",
+    "collection": "sample_data"
+  },
+  "transformation": {
+    "type": "type_conversion",
+    "conversions": [
+      {
+        "column": "date_str",
+        "to_type": "date",
+        "format": "%Y-%m-%d"
+      },
+      {
+        "column": "amount_str",
+        "to_type": "float"
+      }
+    ]
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}

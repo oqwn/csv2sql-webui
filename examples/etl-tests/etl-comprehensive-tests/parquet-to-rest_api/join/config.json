@@ -1,0 +1,30 @@
+{
+  "source": {
+    "type": "parquet",
+    "connection": "parquet_connection_string"
+  },
+  "target": {
+    "type": "rest_api",
+    "base_url": "https://api.example.com",
+    "endpoint": "/data",
+    "auth_type": "bearer",
+    "pagination": "offset"
+  },
+  "transformation": {
+    "type": "join",
+    "right_source": {
+      "type": "parquet",
+      "table": "reference_data"
+    },
+    "join_type": "inner",
+    "on": {
+      "left": "category_id",
+      "right": "id"
+    }
+  },
+  "options": {
+    "batch_size": 1000,
+    "error_handling": "continue",
+    "logging_level": "INFO"
+  }
+}
