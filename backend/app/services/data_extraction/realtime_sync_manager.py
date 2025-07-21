@@ -2,16 +2,13 @@
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Callable
+from typing import Dict, Any, Optional, Callable
 from datetime import datetime
-import json
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 import pandas as pd
 
 from .mongodb_connector import MongoDBConnector
 from .mysql_binlog_connector import MySQLBinlogConnector
-from ..import_service import import_file_with_sql
 
 logger = logging.getLogger(__name__)
 

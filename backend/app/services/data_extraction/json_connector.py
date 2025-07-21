@@ -4,7 +4,6 @@ import requests
 from typing import Dict, Any, List, Optional, Iterator
 from .base_connector import DataSourceConnector, ExtractionConfig
 import logging
-from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

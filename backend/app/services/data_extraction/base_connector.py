@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional, Iterator, Tuple
+from typing import Dict, Any, List, Optional, Iterator
 import pandas as pd
-from datetime import datetime
 
 
 class DataSourceConnector(ABC):

@@ -1,10 +1,8 @@
 import pandas as pd
-import numpy as np
 import io
-from typing import Dict, List, Tuple, Optional
-from datetime import datetime
+from typing import Dict, Tuple
 from fastapi import UploadFile
-from sqlalchemy import text, Integer, Float, Boolean, DateTime, Date, Text, VARCHAR
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.services.type_detection import detect_column_type
 from app.services.dataframe_converter import convert_dataframe_types_from_detection

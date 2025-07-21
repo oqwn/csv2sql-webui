@@ -1,4 +1,4 @@
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -115,9 +115,10 @@ class TransformationStep(BaseModel):
     name: str
     type: TransformationType
     enabled: bool = True
+    config: Dict[str, Any] = Field(default_factory=dict)
     parameters: Dict[str, Any] = Field(default_factory=dict)
     
-    # Type-specific configs
+    # Type-specific configs (optional, for backward compatibility)
     filter_rules: Optional[List[FilterRule]] = None
     cleaning_rules: Optional[List[CleaningRule]] = None
     aggregation_config: Optional[AggregationConfig] = None
@@ -129,24 +130,24 @@ class TransformationStep(BaseModel):
 
 
 class TransformationPipeline(BaseModel):
-    id: str
+    id: Optional[str] = None
     name: str
     description: Optional[str] = None
+    source_config: Dict[str, Any]
     steps: List[TransformationStep] = Field(default_factory=list)
+    output_config: Optional[Dict[str, Any]] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
 
 class TransformationPreviewRequest(BaseModel):
-    pipeline: TransformationPipeline
-    limit: int = 100
-    source_table: Optional[str] = None
-    source_data: Optional[List[Dict[str, Any]]] = None
+    source_config: Dict[str, Any]
+    steps: List[TransformationStep]
+    preview_rows: int = 100
 
 
 class TransformationExecuteRequest(BaseModel):
-    pipeline: TransformationPipeline
-    source_table: Optional[str] = None
-    target_table: Optional[str] = None
-    source_data: Optional[List[Dict[str, Any]]] = None
-    create_table: bool = True
+    pipeline_id: Optional[str] = None
+    source_config: Optional[Dict[str, Any]] = None
+    steps: Optional[List[TransformationStep]] = None
+    output_config: Dict[str, Any]

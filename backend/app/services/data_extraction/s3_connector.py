@@ -4,7 +4,6 @@ import io
 from typing import Dict, Any, List, Optional, Iterator
 from .base_connector import DataSourceConnector, ExtractionConfig
 import logging
-from datetime import datetime
 from botocore.exceptions import ClientError, NoCredentialsError
 import json
 

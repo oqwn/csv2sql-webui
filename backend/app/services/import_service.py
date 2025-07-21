@@ -6,9 +6,7 @@ from typing import Dict, List, Optional
 from fastapi import UploadFile
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from app.services.type_detection import detect_column_type
 from app.services.column_utils import sanitize_column_name
-from app.services.dataframe_converter import convert_dataframe_types_from_detection
 
 
 

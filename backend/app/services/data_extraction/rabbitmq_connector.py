@@ -3,7 +3,6 @@ from typing import Dict, Any, List, Optional, Iterator
 from .base_connector import DataSourceConnector, ExtractionConfig
 import logging
 import json
-import asyncio
 
 logger = logging.getLogger(__name__)
 

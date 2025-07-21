@@ -1,10 +1,9 @@
 """MySQL binlog connector for real-time data synchronization."""
 
 import pandas as pd
-from typing import Dict, Any, List, Optional, Iterator, Callable
+from typing import Dict, Any, List, Optional, Callable
 import logging
 from datetime import datetime
-import asyncio
 import json
 
 logger = logging.getLogger(__name__)

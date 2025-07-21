@@ -1,6 +1,5 @@
 import pandas as pd
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from typing import Dict, Any, List
 
 from app.services.local_storage import local_storage
 from app.services.sql_executor import DataSourceSQLExecutor

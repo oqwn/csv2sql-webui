@@ -1,13 +1,10 @@
-from typing import Any, Optional, List, Dict
+from typing import Any, Optional, List
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 from pydantic import BaseModel
 import pandas as pd
 import io
 import json
-import re
-from datetime import datetime, date
 
-from app.services.csv_importer import generate_create_table_sql
 from app.services.type_detection import detect_column_type
 from app.services.file_validation_service import validate_csv_file
 from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename

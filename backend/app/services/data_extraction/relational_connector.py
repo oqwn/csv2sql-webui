@@ -1,5 +1,4 @@
 import pandas as pd
-import sqlalchemy as sa
 from sqlalchemy import create_engine, text, inspect
 from typing import Dict, Any, List, Optional, Iterator
 from .base_connector import DataSourceConnector, ExtractionConfig

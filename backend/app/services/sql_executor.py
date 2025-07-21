@@ -1,6 +1,6 @@
 from typing import Dict, List, Any, Optional
 import time
-from sqlalchemy import create_engine, text, inspect
+from sqlalchemy import text
 from app.services.data_extraction.extraction_manager import DataExtractionManager
 
 class DataSourceSQLExecutor:

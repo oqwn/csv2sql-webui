@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional, Type
+from typing import Dict, Any, List
 from .base_connector import DataSourceConnector
 from .relational_connector import RelationalDatabaseConnector
 from .mongodb_connector import MongoDBConnector
@@ -17,13 +17,10 @@ try:
 except ImportError:
     BOTO3_AVAILABLE = False
 from ..type_detection import detect_column_type
-from ..import_service import import_file_with_sql
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import pandas as pd
 import logging
-import asyncio
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

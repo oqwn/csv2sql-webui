@@ -1,16 +1,13 @@
 import pandas as pd
-import numpy as np
 import io
-from typing import Dict, List, Tuple, Optional, Any
-from datetime import datetime
+from typing import List, Optional
 from fastapi import UploadFile, HTTPException
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 from openpyxl import load_workbook
 
 from .csv_importer import create_table_from_dataframe, generate_create_table_sql
 from app.services.type_detection import detect_column_type
-from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename, sanitize_column_name
+from app.services.column_utils import build_column_preview_info, generate_table_name_from_filename
 from app.services.dataframe_converter import convert_dataframe_types_from_detection
 
 
