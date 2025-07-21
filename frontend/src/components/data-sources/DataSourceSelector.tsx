@@ -17,8 +17,20 @@ import {
   Select,
   MenuItem,
   Alert,
-  CircularProgress
+  CircularProgress,
+  InputAdornment,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  ListItemIcon,
+  Paper
 } from '@mui/material';
+import {
+  Search as SearchIcon,
+  Storage as DatabaseIcon,
+  CheckCircle as CheckIcon
+} from '@mui/icons-material';
 import { dataSourceAPI, SupportedDataSource, ConnectionTestRequest } from '../../services/dataSourceAPI';
 import DataSourceLogo from '../common/DataSourceLogo';
 
@@ -36,6 +48,9 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<any>(null);
   const [error, setError] = useState<string>('');
+  const [showDatabasePicker, setShowDatabasePicker] = useState(false);
+  const [availableDatabases, setAvailableDatabases] = useState<string[]>([]);
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('');
 
   useEffect(() => {
     if (open) {
@@ -57,6 +72,9 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
     setConnectionConfig(getDefaultConfig(source.type));
     setTestResult(null);
     setError('');
+    setShowDatabasePicker(false);
+    setAvailableDatabases([]);
+    setSelectedDatabase('');
   };
 
   const getDefaultConfig = (sourceType: string): Record<string, any> => {
@@ -149,6 +167,11 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
       
       const response = await dataSourceAPI.testConnection(request);
       setTestResult(response.data);
+      
+      // Extract available databases for picker
+      if (response.data.available_databases && response.data.available_databases.length > 0) {
+        setAvailableDatabases(response.data.available_databases);
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Connection test failed');
       setTestResult(null);
@@ -157,9 +180,59 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
     }
   };
 
+  const findAndPickDatabase = async () => {
+    if (!selectedSource) return;
+    
+    // Remove database from config for discovery
+    const configForDiscovery = { ...connectionConfig };
+    delete configForDiscovery.database;
+    
+    setTesting(true);
+    setError('');
+    
+    try {
+      const request: ConnectionTestRequest = {
+        type: selectedSource.type,
+        connection_config: configForDiscovery
+      };
+      
+      const response = await dataSourceAPI.testConnection(request);
+      
+      if (response.data.available_databases && response.data.available_databases.length > 0) {
+        setAvailableDatabases(response.data.available_databases);
+        setShowDatabasePicker(true);
+        setTestResult(null); // Reset test result to require re-testing after database selection
+      } else {
+        setError('No databases found or database listing not supported for this data source type');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to discover databases');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleDatabaseSelect = (database: string) => {
+    setSelectedDatabase(database);
+    setConnectionConfig(prev => ({
+      ...prev,
+      database: database
+    }));
+    setShowDatabasePicker(false);
+    setTestResult(null); // Reset test result to require re-testing with selected database
+    setError('');
+  };
+
   const createDataSource = async () => {
     if (!selectedSource || !testResult || testResult.status !== 'success') {
       setError('Please test the connection successfully before creating');
+      return;
+    }
+
+    // Check if database is required and selected for database-type sources
+    const requiresDatabase = ['mysql', 'postgresql', 'mongodb'].includes(selectedSource.type);
+    if (requiresDatabase && !connectionConfig.database) {
+      setError('Please select a database using the "Find & Pick Database" button before creating the data source');
       return;
     }
     
@@ -168,10 +241,10 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
     
     try {
       const dataSource = {
-        name: `${selectedSource.name} - ${connectionConfig.host || connectionConfig.base_url || 'Connection'}`,
+        name: `${selectedSource.name} - ${connectionConfig.host || connectionConfig.base_url || 'Connection'}${connectionConfig.database ? ` (${connectionConfig.database})` : ''}`,
         type: selectedSource.type,
         connection_config: connectionConfig,
-        description: `${selectedSource.description} connection`,
+        description: `${selectedSource.description} connection${connectionConfig.database ? ` to ${connectionConfig.database}` : ''}`,
         is_active: true
       };
       
@@ -190,6 +263,9 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
     setConnectionConfig({});
     setTestResult(null);
     setError('');
+    setShowDatabasePicker(false);
+    setAvailableDatabases([]);
+    setSelectedDatabase('');
     onClose();
   };
 
@@ -206,7 +282,7 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         
         <Grid container spacing={2}>
           {fields.map((field) => (
-            <Grid item xs={12} sm={6} key={field.name}>
+            <Grid item xs={12} sm={field.name === 'database' ? 12 : 6} key={field.name}>
               {field.type === 'select' ? (
                 <FormControl fullWidth>
                   <InputLabel>{field.label}</InputLabel>
@@ -222,6 +298,51 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
                     ))}
                   </Select>
                 </FormControl>
+              ) : field.name === 'database' && ['mysql', 'postgresql', 'mongodb'].includes(selectedSource.type) ? (
+                <Box>
+                  <TextField
+                    fullWidth
+                    label={field.label}
+                    type={field.type}
+                    value={connectionConfig[field.name] || ''}
+                    onChange={(e) => handleConfigChange(field.name, e.target.value)}
+                    required={true}
+                    helperText={selectedDatabase ? `Selected: ${selectedDatabase}` : 'Use the button below to find and select a database'}
+                    InputProps={{
+                      endAdornment: selectedDatabase ? (
+                        <InputAdornment position="end">
+                          <CheckIcon color="success" />
+                        </InputAdornment>
+                      ) : null,
+                      readOnly: !!selectedDatabase
+                    }}
+                  />
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={findAndPickDatabase}
+                      disabled={testing || !isBasicConfigValid()}
+                      startIcon={testing ? <CircularProgress size={16} /> : <SearchIcon />}
+                      sx={{ flexShrink: 0 }}
+                    >
+                      {testing ? 'Searching...' : 'Find & Pick Database'}
+                    </Button>
+                    {selectedDatabase && (
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => {
+                          setSelectedDatabase('');
+                          setConnectionConfig(prev => ({ ...prev, database: '' }));
+                          setTestResult(null);
+                        }}
+                      >
+                        Clear Selection
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
               ) : (
                 <TextField
                   fullWidth
@@ -295,6 +416,47 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
             {error}
           </Alert>
         )}
+
+        {/* Database Picker Dialog */}
+        <Dialog
+          open={showDatabasePicker}
+          onClose={() => setShowDatabasePicker(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DatabaseIcon />
+              Select Database
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Found {availableDatabases.length} database(s). Click on one to select it:
+            </Typography>
+            <Paper variant="outlined" sx={{ mt: 2, maxHeight: 300, overflow: 'auto' }}>
+              <List dense>
+                {availableDatabases.map((db) => (
+                  <ListItem key={db} disablePadding>
+                    <ListItemButton onClick={() => handleDatabaseSelect(db)}>
+                      <ListItemIcon>
+                        <DatabaseIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={db}
+                        secondary={db === selectedDatabase ? 'Currently selected' : null}
+                      />
+                      {db === selectedDatabase && <CheckIcon color="success" />}
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowDatabasePicker(false)}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   };
@@ -306,21 +468,21 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: true },
         { name: 'password', label: 'Password', type: 'password', required: false, helperText: 'Optional' },
-        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' }
+        { name: 'database', label: 'Database', type: 'text', required: true, helperText: 'Required - Use "Find & Pick Database" button to select' }
       ],
       postgresql: [
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: true },
         { name: 'password', label: 'Password', type: 'password', required: false, helperText: 'Optional' },
-        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' }
+        { name: 'database', label: 'Database', type: 'text', required: true, helperText: 'Required - Use "Find & Pick Database" button to select' }
       ],
       mongodb: [
         { name: 'host', label: 'Host', type: 'text', required: true },
         { name: 'port', label: 'Port', type: 'number', required: true },
         { name: 'username', label: 'Username', type: 'text', required: false },
         { name: 'password', label: 'Password', type: 'password', required: false },
-        { name: 'database', label: 'Database', type: 'text', required: false, helperText: 'Optional - Leave empty to list available databases' },
+        { name: 'database', label: 'Database', type: 'text', required: true, helperText: 'Required - Use "Find & Pick Database" button to select' },
         { name: 'auth_source', label: 'Auth Source', type: 'text', required: false, helperText: 'Default: admin' }
       ],
       redis: [
@@ -396,6 +558,17 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
     };
     
     return fieldConfigs[sourceType] || [];
+  };
+
+  const isBasicConfigValid = () => {
+    if (!selectedSource) return false;
+    
+    const fields = getConfigFields(selectedSource.type);
+    const basicFields = fields.filter(f => f.required && f.name !== 'database');
+    
+    return basicFields.every(field => 
+      connectionConfig[field.name] && connectionConfig[field.name].toString().trim()
+    );
   };
 
   const isConfigValid = () => {
@@ -500,7 +673,12 @@ const DataSourceSelector: React.FC<Props> = ({ open, onClose, onDataSourceCreate
           <Button
             variant="contained"
             onClick={createDataSource}
-            disabled={loading || !testResult || testResult.status !== 'success'}
+            disabled={
+              loading || 
+              !testResult || 
+              testResult.status !== 'success' ||
+              (['mysql', 'postgresql', 'mongodb'].includes(selectedSource.type) && !connectionConfig.database)
+            }
           >
             {loading ? <CircularProgress size={20} /> : 'Create Data Source'}
           </Button>

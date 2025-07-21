@@ -54,7 +54,12 @@ const TransformationPipelineBuilder: React.FC<Props> = ({
       setName(pipeline.name);
       setDescription(pipeline.description || '');
       setSourceConfig(pipeline.source_config);
-      setSteps(pipeline.steps);
+      // Ensure all steps have IDs
+      const stepsWithIds = pipeline.steps.map((step, index) => ({
+        ...step,
+        id: step.id || `step-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      setSteps(stepsWithIds);
       setOutputConfig(pipeline.output_config || { type: 'table' });
     }
   }, [pipeline]);
@@ -69,6 +74,7 @@ const TransformationPipelineBuilder: React.FC<Props> = ({
 
   const handleAddStep = (type: TransformationType) => {
     const newStep: TransformationStep = {
+      id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `New ${type} transformation`,
       type,
       config: {},

@@ -119,6 +119,26 @@ const TransformationsPage: React.FC = () => {
     }
   };
 
+  const handleExecutePipeline = async (pipeline: TransformationPipeline) => {
+    try {
+      setLoading(true);
+      const response = await transformationService.executePipeline(
+        pipeline.id!, 
+        pipeline.output_config || {
+          type: 'table',
+          datasource_id: pipeline.source_config?.datasource_id,
+          table_name: `${pipeline.name.toLowerCase().replace(/\s+/g, '_')}_result`,
+          if_exists: 'replace'
+        }
+      );
+      setSuccess(`Pipeline executed successfully! ${response.message}`);
+    } catch (error: any) {
+      setError(error.message || 'Failed to execute pipeline');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
       <Container maxWidth="xl">
         <Box sx={{ mb: 4 }}>
@@ -153,10 +173,7 @@ const TransformationsPage: React.FC = () => {
               pipelines={pipelines}
               onEdit={handleEditPipeline}
               onDelete={handleDeletePipeline}
-              onExecute={(pipeline) => {
-                setSelectedPipeline(pipeline);
-                setTabValue(1);
-              }}
+              onExecute={handleExecutePipeline}
               loading={loading}
             />
           </TabPanel>

@@ -116,7 +116,7 @@ const TransformationPipelineList: React.FC<Props> = ({
               </TableCell>
               <TableCell>
                 <Typography variant="body2">
-                  {pipeline.source_config.table_name || 'Custom Query'}
+                  {pipeline.source_config?.table_name || 'Custom Query'}
                 </Typography>
               </TableCell>
               <TableCell>

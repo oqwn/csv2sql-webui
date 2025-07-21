@@ -12,7 +12,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 class TransformationService {
   async createPipeline(pipeline: TransformationPipeline): Promise<any> {
-    const response = await axios.post(`${API_BASE_URL}/api/v1/transformations/pipelines`, pipeline);
+    // Remove id field when creating a new pipeline
+    const { id, ...pipelineWithoutId } = pipeline;
+    const response = await axios.post(`${API_BASE_URL}/api/v1/transformations/pipelines`, pipelineWithoutId);
     return response.data;
   }
 
