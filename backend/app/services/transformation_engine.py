@@ -533,38 +533,230 @@ class TransformationEngine:
         except Exception as e:
             return False, str(e)
     
-    async def save_to_table(self, df: pd.DataFrame, table_name: str, executor, if_exists: str = 'replace'):
-        """Save DataFrame to database table"""
-        from app.services.import_utils import prepare_dataframe_for_import, generate_insert_sql
+    async def save_to_table(self, df: pd.DataFrame, table_name: str, executor, if_exists: str = 'replace', primary_key_columns: Optional[List[str]] = None):
+        """Save DataFrame to database table with various modes"""
+        from app.services.import_utils import prepare_dataframe_for_import
+        from app.services.type_detection import detect_column_type
+        
+        # Check if table exists
+        table_exists = await self._check_table_exists(executor, table_name)
         
         if if_exists == 'replace':
-            # Drop table if exists
-            drop_query = f'DROP TABLE IF EXISTS "{table_name}"'
-            await executor.execute_query(drop_query)
+            if table_exists:
+                # Drop table if exists
+                drop_query = f'DROP TABLE IF EXISTS "{table_name}"'
+                await executor.execute_query(drop_query)
+                table_exists = False
+        elif if_exists == 'fail' and table_exists:
+            raise Exception(f"Table '{table_name}' already exists and if_exists='fail'")
         
         # Detect column types
-        from app.services.type_detection import detect_column_type
         column_types = {}
         for col in df.columns:
             sql_type, _ = detect_column_type(df[col])
             column_types[col] = sql_type
         
-        # Prepare for import
-        create_table_sql, insert_columns, _, _ = prepare_dataframe_for_import(
-            df, table_name, column_types
-        )
+        if not table_exists:
+            # Create table if it doesn't exist
+            create_table_sql, insert_columns, _, _ = prepare_dataframe_for_import(
+                df, table_name, column_types
+            )
+            
+            result = await executor.execute_query(create_table_sql)
+            if result['error']:
+                raise Exception(f"Failed to create table: {result['error']}")
+        else:
+            # Table exists, validate columns match for append/upsert/merge modes
+            existing_columns = await self._get_table_columns(executor, table_name)
+            df_columns = set(df.columns)
+            
+            if not df_columns.issubset(set(existing_columns)):
+                missing_cols = df_columns - set(existing_columns)
+                raise Exception(f"DataFrame contains columns not in existing table: {missing_cols}")
         
-        # Create table
-        result = await executor.execute_query(create_table_sql)
-        if result['error']:
-            raise Exception(f"Failed to create table: {result['error']}")
+        # Handle different loading modes
+        if if_exists == 'append':
+            await self._append_data(df, table_name, executor)
+        elif if_exists == 'upsert':
+            await self._upsert_data(df, table_name, executor, primary_key_columns)
+        elif if_exists == 'merge':
+            await self._merge_data(df, table_name, executor, primary_key_columns)
+        else:  # replace or new table
+            await self._insert_data(df, table_name, executor)
+
+    async def _check_table_exists(self, executor, table_name: str) -> bool:
+        """Check if table exists in database"""
+        try:
+            check_query = f"SELECT 1 FROM \"{table_name}\" LIMIT 1"
+            result = await executor.execute_query(check_query)
+            return not result['error']
+        except:
+            return False
+    
+    async def _get_table_columns(self, executor, table_name: str) -> List[str]:
+        """Get list of column names from existing table"""
+        try:
+            # This query works for most SQL databases
+            info_query = f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = '{table_name}' 
+            ORDER BY ordinal_position
+            """
+            result = await executor.execute_query(info_query)
+            if result['error']:
+                # Fallback: try to select from table and get columns
+                fallback_query = f'SELECT * FROM "{table_name}" LIMIT 0'
+                result = await executor.execute_query(fallback_query)
+                return result['columns'] if not result['error'] else []
+            else:
+                return [row[0] for row in result['rows']]
+        except:
+            return []
+    
+    async def _insert_data(self, df: pd.DataFrame, table_name: str, executor):
+        """Insert data using standard INSERT statements"""
+        from app.services.import_utils import generate_insert_sql
         
-        # Insert data
-        insert_statements = generate_insert_sql(df, table_name, insert_columns)
+        # Get column info for insert
+        column_names = list(df.columns)
+        insert_statements = generate_insert_sql(df, table_name, column_names)
+        
         for insert_sql in insert_statements:
             result = await executor.execute_query(insert_sql)
             if result['error']:
                 raise Exception(f"Failed to insert data: {result['error']}")
+    
+    async def _append_data(self, df: pd.DataFrame, table_name: str, executor):
+        """Append data to existing table"""
+        await self._insert_data(df, table_name, executor)
+    
+    async def _upsert_data(self, df: pd.DataFrame, table_name: str, executor, primary_key_columns: Optional[List[str]]):
+        """Upsert data (INSERT ... ON CONFLICT DO UPDATE for PostgreSQL, REPLACE for MySQL)"""
+        if not primary_key_columns:
+            # If no primary key specified, try to detect from table
+            primary_key_columns = await self._detect_primary_key(executor, table_name)
+            
+        if not primary_key_columns:
+            # Fallback to append if no primary key available
+            await self._append_data(df, table_name, executor)
+            return
+        
+        # Generate upsert statements based on database type
+        db_type = executor.data_source_type
+        
+        for _, row in df.iterrows():
+            if db_type == 'postgresql':
+                await self._postgresql_upsert(row, table_name, executor, primary_key_columns)
+            elif db_type == 'mysql':
+                await self._mysql_upsert(row, table_name, executor, primary_key_columns)
+            else:
+                # Generic approach: DELETE then INSERT
+                await self._generic_upsert(row, table_name, executor, primary_key_columns)
+    
+    async def _merge_data(self, df: pd.DataFrame, table_name: str, executor, primary_key_columns: Optional[List[str]]):
+        """Advanced merge with custom logic (currently same as upsert)"""
+        # For now, merge is the same as upsert
+        # Could be extended for more complex scenarios like:
+        # - Different update vs insert logic
+        # - Conditional merging based on data values
+        # - Soft deletes for records not in new dataset
+        await self._upsert_data(df, table_name, executor, primary_key_columns)
+    
+    async def _detect_primary_key(self, executor, table_name: str) -> List[str]:
+        """Detect primary key columns from table schema"""
+        try:
+            # Try PostgreSQL approach
+            pk_query = f"""
+            SELECT column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu 
+            ON tc.constraint_name = kcu.constraint_name
+            WHERE tc.table_name = '{table_name}' 
+            AND tc.constraint_type = 'PRIMARY KEY'
+            """
+            result = await executor.execute_query(pk_query)
+            if not result['error'] and result['rows']:
+                return [row[0] for row in result['rows']]
+                
+            # Try MySQL approach
+            mysql_pk_query = f"""
+            SELECT column_name 
+            FROM information_schema.key_column_usage 
+            WHERE table_name = '{table_name}' 
+            AND constraint_name = 'PRIMARY'
+            """
+            result = await executor.execute_query(mysql_pk_query)
+            if not result['error'] and result['rows']:
+                return [row[0] for row in result['rows']]
+                
+        except:
+            pass
+        return []
+    
+    async def _postgresql_upsert(self, row: pd.Series, table_name: str, executor, primary_key_columns: List[str]):
+        """PostgreSQL-specific upsert using ON CONFLICT"""
+        columns = list(row.index)
+        values = [f"'{str(val).replace(chr(39), chr(39)+chr(39))}'" if pd.notna(val) else 'NULL' for val in row.values]
+        
+        # Build INSERT statement
+        columns_str = ", ".join(f'"{col}"' for col in columns)
+        insert_part = f'INSERT INTO "{table_name}" ({columns_str}) VALUES ({", ".join(values)})'
+        
+        # Build ON CONFLICT part
+        pk_columns_str = ", ".join(f'"{col}"' for col in primary_key_columns)
+        update_columns = [col for col in columns if col not in primary_key_columns]
+        
+        if update_columns:
+            update_part = ", ".join(f'"{col}" = EXCLUDED."{col}"' for col in update_columns)
+            upsert_query = f'{insert_part} ON CONFLICT ({pk_columns_str}) DO UPDATE SET {update_part}'
+        else:
+            upsert_query = f'{insert_part} ON CONFLICT ({pk_columns_str}) DO NOTHING'
+        
+        result = await executor.execute_query(upsert_query)
+        if result['error']:
+            raise Exception(f"Failed to upsert data: {result['error']}")
+    
+    async def _mysql_upsert(self, row: pd.Series, table_name: str, executor, primary_key_columns: List[str]):
+        """MySQL-specific upsert using REPLACE or ON DUPLICATE KEY UPDATE"""
+        columns = list(row.index)
+        values = [f"'{str(val).replace(chr(39), chr(39)+chr(39))}'" if pd.notna(val) else 'NULL' for val in row.values]
+        
+        # Use REPLACE for simpler syntax
+        columns_str = ", ".join(f"`{col}`" for col in columns)
+        replace_query = f'REPLACE INTO `{table_name}` ({columns_str}) VALUES ({", ".join(values)})'
+        
+        result = await executor.execute_query(replace_query)
+        if result['error']:
+            raise Exception(f"Failed to replace data: {result['error']}")
+    
+    async def _generic_upsert(self, row: pd.Series, table_name: str, executor, primary_key_columns: List[str]):
+        """Generic upsert using DELETE then INSERT"""
+        # Build WHERE clause for primary key
+        pk_conditions = []
+        for col in primary_key_columns:
+            val = row[col]
+            if pd.notna(val):
+                pk_conditions.append(f'"{col}" = \'{str(val).replace(chr(39), chr(39)+chr(39))}\'')
+            else:
+                pk_conditions.append(f'"{col}" IS NULL')
+        
+        where_clause = " AND ".join(pk_conditions)
+        
+        # Delete existing record
+        delete_query = f'DELETE FROM "{table_name}" WHERE {where_clause}'
+        await executor.execute_query(delete_query)  # Ignore errors - record might not exist
+        
+        # Insert new record
+        columns = list(row.index)
+        values = [f"'{str(val).replace(chr(39), chr(39)+chr(39))}'" if pd.notna(val) else 'NULL' for val in row.values]
+        
+        columns_str = ", ".join(f'"{col}"' for col in columns)
+        insert_query = f'INSERT INTO "{table_name}" ({columns_str}) VALUES ({", ".join(values)})'
+        
+        result = await executor.execute_query(insert_query)
+        if result['error']:
+            raise Exception(f"Failed to insert data: {result['error']}")
     
     async def export_data(self, df: pd.DataFrame, format: str, filename: Optional[str] = None) -> str:
         """Export DataFrame to file"""

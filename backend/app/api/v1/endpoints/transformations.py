@@ -240,7 +240,14 @@ async def execute_transformation(request: TransformationExecuteRequest) -> Any:
             )
             
             # Create table and insert data
-            await engine.save_to_table(result_df, target_table, target_executor, output_config.get('if_exists', 'replace'))
+            primary_key_columns = output_config.get('primary_key_columns', [])
+            await engine.save_to_table(
+                result_df, 
+                target_table, 
+                target_executor, 
+                output_config.get('if_exists', 'replace'),
+                primary_key_columns
+            )
             
             return {
                 "status": "success",
