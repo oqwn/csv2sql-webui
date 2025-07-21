@@ -43,6 +43,9 @@ import {
   Search as SearchIcon,
   TableChart as TableChartIcon,
   Info as InfoIcon,
+  SelectAll as SelectAllIcon,
+  CheckBox as CheckBoxIcon,
+  CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
 } from '@mui/icons-material';
 import { sqlAPI, tableAPI } from '../services/api';
 import { useDataSource } from '../contexts/DataSourceContext';
@@ -71,6 +74,8 @@ const TableManagerPage: React.FC = () => {
   const { selectedDataSource, isConnected } = useDataSource();
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [tableInfo, setTableInfo] = useState<TableInfo | null>(null);
   const [tableData, setTableData] = useState<any[]>([]);
   const [totalRows, setTotalRows] = useState(0);
@@ -92,6 +97,7 @@ const TableManagerPage: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleteTableDialogOpen, setDeleteTableDialogOpen] = useState(false);
+  const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false);
   
   // Search and filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -381,6 +387,69 @@ const TableManagerPage: React.FC = () => {
     }
   };
 
+  const handleTableSelection = (tableName: string) => {
+    if (selectionMode) {
+      setSelectedTables(prev => 
+        prev.includes(tableName) 
+          ? prev.filter(t => t !== tableName)
+          : [...prev, tableName]
+      );
+    } else {
+      setSelectedTable(tableName);
+      setPage(0);
+      setSearchQuery('');
+      setFilterColumn('');
+    }
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedTables([]);
+    if (selectionMode) {
+      // Exit selection mode, clear selections
+      setSelectedTables([]);
+    }
+  };
+
+  const selectAllTables = () => {
+    setSelectedTables(selectedTables.length === tables.length ? [] : [...tables]);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedTables.length === 0) return;
+    
+    setLoading(true);
+    try {
+      if (!selectedDataSource) throw new Error('No data source selected');
+      const response = await tableAPI.batchDeleteTables(selectedDataSource.id, selectedTables);
+      
+      const { successful_deletes, total_tables } = response.data;
+      setSuccess(`Batch delete completed: ${successful_deletes}/${total_tables} tables deleted successfully`);
+      
+      setBatchDeleteDialogOpen(false);
+      setSelectedTables([]);
+      setSelectionMode(false);
+      
+      // Clear current table selection if it was deleted
+      if (selectedTables.includes(selectedTable)) {
+        setSelectedTable('');
+        setTableData([]);
+        setTableInfo(null);
+      }
+      
+      await fetchTables();
+    } catch (err: any) {
+      const errorDetail = err.response?.data?.detail;
+      if (Array.isArray(errorDetail)) {
+        setError(errorDetail.map(e => e.msg || e).join(', '));
+      } else {
+        setError(errorDetail || 'Failed to delete tables');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -531,25 +600,72 @@ const TableManagerPage: React.FC = () => {
         <Grid item xs={12} md={3}>
           <Card>
             <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Tables
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Tables
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    variant={selectionMode ? 'contained' : 'outlined'}
+                    onClick={toggleSelectionMode}
+                    startIcon={selectionMode ? <CheckBoxIcon /> : <CheckBoxOutlineBlankIcon />}
+                  >
+                    Select
+                  </Button>
+                  {selectionMode && (
+                    <Button
+                      size="small"
+                      onClick={selectAllTables}
+                      startIcon={<SelectAllIcon />}
+                    >
+                      All
+                    </Button>
+                  )}
+                </Box>
+              </Box>
               <Divider sx={{ mb: 2 }} />
+              
+              {selectionMode && selectedTables.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Alert severity="info" sx={{ mb: 1 }}>
+                    {selectedTables.length} table(s) selected
+                  </Alert>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    fullWidth
+                    startIcon={<DeleteIcon />}
+                    onClick={() => setBatchDeleteDialogOpen(true)}
+                  >
+                    Delete Selected
+                  </Button>
+                </Box>
+              )}
+              
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {tables.map((table) => (
-                  <Button
-                    key={table}
-                    variant={selectedTable === table ? 'contained' : 'outlined'}
-                    onClick={() => {
-                      setSelectedTable(table);
-                      setPage(0);
-                      setSearchQuery('');
-                      setFilterColumn('');
-                    }}
-                    sx={{ justifyContent: 'flex-start' }}
-                  >
-                    {table}
-                  </Button>
+                  <Box key={table} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {selectionMode && (
+                      <Checkbox
+                        checked={selectedTables.includes(table)}
+                        onChange={() => handleTableSelection(table)}
+                        size="small"
+                      />
+                    )}
+                    <Button
+                      variant={selectedTable === table && !selectionMode ? 'contained' : 'outlined'}
+                      onClick={() => handleTableSelection(table)}
+                      sx={{ 
+                        justifyContent: 'flex-start', 
+                        flex: 1,
+                        backgroundColor: selectionMode && selectedTables.includes(table) ? 'action.selected' : undefined
+                      }}
+                    >
+                      {table}
+                    </Button>
+                  </Box>
                 ))}
               </Box>
             </CardContent>
@@ -827,6 +943,50 @@ const TableManagerPage: React.FC = () => {
             disabled={loading}
           >
             {loading ? <CircularProgress size={20} /> : 'Delete Table'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Batch Delete Confirmation Dialog */}
+      <Dialog open={batchDeleteDialogOpen} onClose={() => setBatchDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Multiple Tables</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              Are you sure you want to delete <strong>{selectedTables.length}</strong> table(s)?
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              This action cannot be undone and will permanently delete all data in these tables.
+            </Typography>
+          </Alert>
+          
+          <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+            Tables to be deleted:
+          </Typography>
+          <Box sx={{ maxHeight: 200, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1, p: 1 }}>
+            {selectedTables.map((table) => (
+              <Chip 
+                key={table} 
+                label={table} 
+                size="small" 
+                sx={{ m: 0.5 }} 
+                color="error" 
+                variant="outlined" 
+              />
+            ))}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBatchDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={handleBatchDelete}
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={20} /> : `Delete ${selectedTables.length} Table(s)`}
           </Button>
         </DialogActions>
       </Dialog>

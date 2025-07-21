@@ -40,6 +40,11 @@ class RecordDeleteRequest(BaseModel):
     data_source_id: int
 
 
+class BatchTableDeleteRequest(BaseModel):
+    table_names: List[str]
+    data_source_id: int
+
+
 async def get_primary_key(executor: DataSourceSQLExecutor, table_name: str) -> Optional[str]:
     """Get the primary key column name for a table"""
     try:
@@ -405,3 +410,55 @@ async def delete_table(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/tables/batch-delete")
+async def batch_delete_tables(request: BatchTableDeleteRequest) -> Any:
+    """Delete multiple tables from the database"""
+    # Get data source
+    data_source = local_storage.get_data_source(request.data_source_id)
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Create executor
+    executor = DataSourceSQLExecutor(
+        data_source['type'],
+        data_source['connection_config']
+    )
+    
+    results = []
+    successful_deletes = 0
+    
+    for table_name in request.table_names:
+        try:
+            # Drop the table
+            query = f'DROP TABLE "{table_name}" CASCADE'
+            result = await executor.execute_query(query)
+            
+            if result['error']:
+                results.append({
+                    "table_name": table_name,
+                    "status": "error",
+                    "error": result['error']
+                })
+            else:
+                results.append({
+                    "table_name": table_name,
+                    "status": "success",
+                    "message": f"Table '{table_name}' deleted successfully"
+                })
+                successful_deletes += 1
+        except Exception as e:
+            results.append({
+                "table_name": table_name,
+                "status": "error",
+                "error": str(e)
+            })
+    
+    return {
+        "message": f"Batch delete completed: {successful_deletes}/{len(request.table_names)} tables deleted successfully",
+        "total_tables": len(request.table_names),
+        "successful_deletes": successful_deletes,
+        "failed_deletes": len(request.table_names) - successful_deletes,
+        "results": results
+    }

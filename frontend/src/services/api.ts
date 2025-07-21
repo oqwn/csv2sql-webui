@@ -195,6 +195,9 @@ export const tableAPI = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  
+  batchDeleteTables: (dataSourceId: number, table_names: string[]) =>
+    api.post('/tables/tables/batch-delete', { data_source_id: dataSourceId, table_names }),
 };
 
 export default api;
