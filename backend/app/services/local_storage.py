@@ -216,6 +216,22 @@ class LocalStorage:
                 return True
         
         return False
+    
+    def read_file(self, filename: str, default: Any = None) -> Any:
+        """Read a generic file"""
+        file_path = self.storage_dir / filename
+        try:
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return default or {}
+    
+    def write_file(self, filename: str, data: Any) -> None:
+        """Write data to a generic file"""
+        file_path = self.storage_dir / filename
+        with self._lock:
+            with open(file_path, 'w') as f:
+                json.dump(data, f, indent=2, default=str)
 
 
 # Global instance

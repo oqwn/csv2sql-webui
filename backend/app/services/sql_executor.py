@@ -1,15 +1,19 @@
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import time
 from sqlalchemy import text
 from app.services.data_extraction.extraction_manager import DataExtractionManager
 
+if TYPE_CHECKING:
+    from app.services.transaction_manager import TransactionContext
+
 class DataSourceSQLExecutor:
     """Execute SQL queries against a connected data source"""
     
-    def __init__(self, data_source_type: str, connection_config: Dict[str, Any]):
+    def __init__(self, data_source_type: str, connection_config: Dict[str, Any], transaction_context: Optional['TransactionContext'] = None):
         self.data_source_type = data_source_type
         self.connection_config = connection_config
         self.extraction_manager = DataExtractionManager()
+        self.transaction_context = transaction_context
         
     async def execute_query(self, query: str) -> Dict[str, Any]:
         """Execute a SQL query and return results"""
@@ -134,3 +138,104 @@ class DataSourceSQLExecutor:
         except Exception as e:
             print(f"Error getting table info: {str(e)}")
             return None
+    
+    async def begin_transaction(self) -> Any:
+        """Begin a database transaction and return the connection"""
+        if self.data_source_type not in ['mysql', 'postgresql', 'sqlite', 'mssql', 'oracle']:
+            raise ValueError(f"Transactions not supported for {self.data_source_type}")
+        
+        # Get connector
+        connector = self.extraction_manager.get_connector(
+            self.data_source_type,
+            self.connection_config
+        )
+        
+        await connector.connect()
+        connection = connector.engine.connect()
+        transaction = connection.begin()
+        
+        return {
+            'connection': connection,
+            'transaction': transaction,
+            'connector': connector
+        }
+    
+    async def execute_in_transaction(self, query: str, connection_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute a query within an existing transaction"""
+        start_time = time.time()
+        
+        try:
+            connection = connection_info['connection']
+            result = connection.execute(text(query))
+            
+            # Check if this is a query that returns data
+            query_upper = query.strip().upper()
+            is_select_query = query_upper.startswith('SELECT') or query_upper.startswith('WITH')
+            
+            if is_select_query:
+                # Get column names
+                columns = list(result.keys()) if hasattr(result, 'keys') else []
+                
+                # Fetch rows
+                rows = []
+                for row in result:
+                    rows.append(list(row))
+                
+                row_count = len(rows)
+            else:
+                # DDL/DML statements
+                columns = []
+                rows = []
+                row_count = result.rowcount if hasattr(result, 'rowcount') else 0
+            
+            execution_time = time.time() - start_time
+            
+            return {
+                'columns': columns,
+                'rows': rows,
+                'row_count': row_count,
+                'execution_time': execution_time,
+                'error': None
+            }
+            
+        except Exception as e:
+            execution_time = time.time() - start_time
+            return {
+                'columns': [],
+                'rows': [],
+                'row_count': 0,
+                'execution_time': execution_time,
+                'error': str(e)
+            }
+    
+    async def commit_transaction(self, connection_info: Dict[str, Any]):
+        """Commit the transaction and cleanup resources"""
+        try:
+            transaction = connection_info['transaction']
+            connection = connection_info['connection']
+            connector = connection_info['connector']
+            
+            transaction.commit()
+            connection.close()
+            await connector.disconnect()
+        except Exception as e:
+            raise e
+    
+    async def rollback_transaction(self, connection_info: Dict[str, Any]):
+        """Rollback the transaction and cleanup resources"""
+        try:
+            transaction = connection_info['transaction']
+            connection = connection_info['connection']
+            connector = connection_info['connector']
+            
+            transaction.rollback()
+            connection.close()
+            await connector.disconnect()
+        except Exception as e:
+            # Still try to cleanup even if rollback fails
+            try:
+                connection.close()
+                await connector.disconnect()
+            except:
+                pass
+            raise e

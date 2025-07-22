@@ -3,7 +3,7 @@ import numpy as np
 import re
 import ast
 import json
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from datetime import datetime
 import sqlparse
 
@@ -13,11 +13,15 @@ from app.models.transformation_types import (
     TypeConversionConfig, CleaningRule
 )
 
+if TYPE_CHECKING:
+    from app.services.transaction_manager import TransactionContext, TransactionManager
+
 
 class TransformationEngine:
     """Engine for applying data transformations"""
     
-    def __init__(self):
+    def __init__(self, transaction_manager: Optional['TransactionManager'] = None):
+        self.transaction_manager = transaction_manager
         self.supported_transformations = {
             TransformationType.FILTER: self._apply_filter,
             TransformationType.CLEAN: self._apply_cleaning,
@@ -32,24 +36,72 @@ class TransformationEngine:
             TransformationType.CUSTOM_PYTHON: self._apply_custom_python,
         }
     
-    async def apply_transformations(self, df: pd.DataFrame, steps: List[TransformationStep]) -> pd.DataFrame:
+    async def apply_transformations(self, df: pd.DataFrame, steps: List[TransformationStep], 
+                                   transaction_context: Optional['TransactionContext'] = None) -> pd.DataFrame:
         """Apply a series of transformation steps to a DataFrame"""
         result_df = df.copy()
         
-        for step in steps:
+        for i, step in enumerate(steps):
             if step.type not in self.supported_transformations:
                 raise ValueError(f"Unsupported transformation type: {step.type}")
             
-            transform_func = self.supported_transformations[step.type]
-            result_df = await transform_func(result_df, step.config)
+            # Create checkpoint before each transformation step
+            if transaction_context and self.transaction_manager:
+                checkpoint_id = self.transaction_manager.create_checkpoint(
+                    transaction_context.transaction_id,
+                    f"Step_{i}_{step.name or step.type.value}",
+                    result_df
+                )
+                
+                self.transaction_manager._log_operation(
+                    transaction_context.transaction_id,
+                    "TRANSFORMATION_STEP",
+                    "started",
+                    f"Starting transformation step: {step.name or step.type.value}",
+                    metadata={"step_index": i, "step_type": step.type.value}
+                )
             
-            # Validate result
-            if result_df is None or result_df.empty:
-                raise ValueError(f"Transformation '{step.name}' resulted in empty dataset")
+            try:
+                transform_func = self.supported_transformations[step.type]
+                result_df = await transform_func(result_df, step.config, transaction_context)
+                
+                # Validate result
+                if result_df is None or result_df.empty:
+                    raise ValueError(f"Transformation '{step.name}' resulted in empty dataset")
+                
+                # Log successful completion
+                if transaction_context and self.transaction_manager:
+                    self.transaction_manager._log_operation(
+                        transaction_context.transaction_id,
+                        "TRANSFORMATION_STEP",
+                        "completed",
+                        f"Completed transformation step: {step.name or step.type.value}",
+                        metadata={"step_index": i, "step_type": step.type.value, "result_rows": len(result_df)}
+                    )
+                    
+            except Exception as e:
+                # Handle errors and dirty data
+                if transaction_context and self.transaction_manager:
+                    # Log error
+                    self.transaction_manager._log_operation(
+                        transaction_context.transaction_id,
+                        "TRANSFORMATION_STEP",
+                        "failed",
+                        f"Failed transformation step: {step.name or step.type.value}",
+                        error=str(e),
+                        metadata={"step_index": i, "step_type": step.type.value}
+                    )
+                    
+                    # If we have checkpoint capability, we could rollback to previous checkpoint
+                    # For now, we'll just re-raise the error
+                    raise
+                else:
+                    raise
         
         return result_df
     
-    async def _apply_filter(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_filter(self, df: pd.DataFrame, config: Dict[str, Any], 
+                           transaction_context: Optional['TransactionContext'] = None) -> pd.DataFrame:
         """Apply filtering rules to DataFrame"""
         result_df = df.copy()
         
@@ -109,7 +161,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_cleaning(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_cleaning(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Apply cleaning rules to DataFrame"""
         result_df = df.copy()
         
@@ -172,7 +224,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_aggregation(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_aggregation(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Apply aggregation operations"""
         agg_config = AggregationConfig(**config)
         
@@ -217,11 +269,11 @@ class TransformationEngine:
         if agg_config.having:
             for rule in agg_config.having:
                 # Apply filter rules to aggregated data
-                result_df = await self._apply_filter(result_df, rule.dict())
+                result_df = await self._apply_filter(result_df, rule.dict(), transaction_context)
         
         return result_df
     
-    async def _apply_column_split(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_column_split(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Split a column into multiple columns"""
         split_config = ColumnSplitConfig(**config)
         result_df = df.copy()
@@ -256,7 +308,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_column_merge(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_column_merge(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Merge multiple columns into one"""
         merge_config = ColumnMergeConfig(**config)
         result_df = df.copy()
@@ -277,7 +329,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_type_conversion(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_type_conversion(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Convert column data types"""
         conv_config = TypeConversionConfig(**config)
         result_df = df.copy()
@@ -337,7 +389,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_rename(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_rename(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Rename columns"""
         result_df = df.copy()
         rename_map = config.get('rename_map', {})
@@ -350,7 +402,7 @@ class TransformationEngine:
         result_df = result_df.rename(columns=rename_map)
         return result_df
     
-    async def _apply_drop(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_drop(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Drop columns"""
         result_df = df.copy()
         columns_to_drop = config.get('columns', [])
@@ -363,7 +415,7 @@ class TransformationEngine:
         result_df = result_df.drop(columns=columns_to_drop)
         return result_df
     
-    async def _apply_fill_null(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_fill_null(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Fill null values"""
         result_df = df.copy()
         
@@ -405,7 +457,7 @@ class TransformationEngine:
         
         return result_df
     
-    async def _apply_custom_sql(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_custom_sql(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Apply custom SQL transformation using pandas SQL capabilities"""
         import sqlite3
         import tempfile
@@ -429,7 +481,7 @@ class TransformationEngine:
             finally:
                 conn.close()
     
-    async def _apply_custom_python(self, df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
+    async def _apply_custom_python(self, df: pd.DataFrame, config: Dict[str, Any], transaction_context: Optional["TransactionContext"] = None) -> pd.DataFrame:
         """Apply custom Python transformation"""
         script = config.get('script', '')
         if not script:
