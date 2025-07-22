@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import sql, csv_import, excel_import, export, table_crud, data_sources, transformations, transactions, data_quality, checkpoints, jobs
+from app.api.v1.endpoints import sql, csv_import, excel_import, export, table_crud, data_sources, transformations, transactions, data_quality, checkpoints, jobs, code_generation
 
 api_router = APIRouter()
 
@@ -14,3 +14,4 @@ api_router.include_router(transactions.router, prefix="/transactions", tags=["tr
 api_router.include_router(data_quality.router, prefix="/data-quality", tags=["data-quality"])
 api_router.include_router(checkpoints.router, prefix="/checkpoints", tags=["checkpoints"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
+api_router.include_router(code_generation.router, prefix="/code-generation", tags=["code-generation"])
