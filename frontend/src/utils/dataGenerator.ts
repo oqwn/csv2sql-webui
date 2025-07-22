@@ -67,6 +67,25 @@ const GENERIC_STRINGS = [
   'Record data', 'Item detail', 'Field value', 'Data entry'
 ];
 
+// Random words for generating more varied strings
+const ADJECTIVES = [
+  'amazing', 'beautiful', 'creative', 'dynamic', 'elegant', 'fantastic', 'gorgeous', 'innovative',
+  'modern', 'outstanding', 'powerful', 'quantum', 'revolutionary', 'stunning', 'tremendous', 'unique',
+  'vibrant', 'wonderful', 'excellent', 'brilliant'
+];
+
+const NOUNS = [
+  'solution', 'system', 'platform', 'product', 'service', 'application', 'framework', 'technology',
+  'innovation', 'design', 'experience', 'interface', 'architecture', 'infrastructure', 'development',
+  'integration', 'optimization', 'transformation', 'evolution', 'revolution'
+];
+
+const VERBS = [
+  'accelerate', 'build', 'create', 'deliver', 'enhance', 'facilitate', 'generate', 'implement',
+  'improve', 'launch', 'maximize', 'optimize', 'provide', 'revolutionize', 'streamline', 'transform',
+  'upgrade', 'validate', 'automate', 'integrate'
+];
+
 const EMAILS = [
   'user@example.com', 'admin@company.com', 'test@test.com', 'info@business.com', 'contact@website.com',
   'support@service.com', 'hello@startup.com', 'team@project.com', 'dev@tech.com', 'sales@corp.com',
@@ -108,8 +127,32 @@ function generateTimestamp(): string {
   return date.toISOString().replace('T', ' ').slice(0, 19);
 }
 
+// Generate random string from word combinations
+function generateRandomString(maxLength: number = 50): string {
+  const patterns = [
+    () => `${randomElement(ADJECTIVES)} ${randomElement(NOUNS)}`,
+    () => `${randomElement(VERBS)} ${randomElement(NOUNS)}`,
+    () => `${randomElement(NOUNS)} ${randomElement(VERBS)}`,
+    () => `${randomElement(ADJECTIVES)} ${randomElement(ADJECTIVES)} ${randomElement(NOUNS)}`,
+    () => randomElement(GENERIC_STRINGS),
+    () => `${randomElement(NOUNS)} ${randomInt(100, 999)}`,
+    () => `${randomElement(ADJECTIVES)}_${randomElement(NOUNS)}_${randomInt(10, 99)}`,
+  ];
+  
+  const result = randomElement(patterns)();
+  return result.length > maxLength ? result.substring(0, maxLength) : result;
+}
+
+// Generate unique string with sequence number
+function generateUniqueString(baseName: string, rowIndex: number, isUnique: boolean = false): string {
+  if (!isUnique || rowIndex === 0) {
+    return baseName;
+  }
+  return `${baseName}_${rowIndex + 1}`;
+}
+
 // Main function to generate value based on column name and type
-export function generateValue(columnName: string, columnType: string, rowIndex: number = 0): string {
+export function generateValue(columnName: string, columnType: string, rowIndex: number = 0, isUnique: boolean = false): string {
   const colLower = columnName.toLowerCase();
   const typeLower = columnType.toLowerCase();
   
@@ -209,11 +252,34 @@ export function generateValue(columnName: string, columnType: string, rowIndex: 
   
   // Handle by data type
   if (typeLower.includes('int') || typeLower.includes('serial')) {
-    return randomInt(1, 10000).toString();
+    // Generate more varied integers
+    const ranges = [
+      [1, 100],
+      [100, 1000],
+      [1000, 10000],
+      [10000, 100000],
+      [1, 50],
+      [50, 500],
+      [500, 5000],
+    ];
+    const [min, max] = randomElement(ranges);
+    return randomInt(min, max).toString();
   }
   
   if (typeLower.includes('decimal') || typeLower.includes('numeric') || typeLower.includes('float') || typeLower.includes('real') || typeLower.includes('double')) {
-    return randomFloat(0, 1000, 2).toString();
+    // Generate more varied decimals
+    const ranges = [
+      [0.01, 9.99],
+      [10, 99.99],
+      [100, 999.99],
+      [1000, 9999.99],
+      [0.1, 1.0],
+      [1, 10],
+      [10, 100],
+    ];
+    const [min, max] = randomElement(ranges);
+    const decimals = typeLower.includes('decimal') || typeLower.includes('numeric') ? 2 : 4;
+    return randomFloat(min, max, decimals).toString();
   }
   
   if (typeLower.includes('bool')) {
@@ -242,17 +308,23 @@ export function generateValue(columnName: string, columnType: string, rowIndex: 
   
   // Default for string types
   if (typeLower.includes('varchar') || typeLower.includes('text') || typeLower.includes('char')) {
-    return randomElement(GENERIC_STRINGS);
+    // Extract max length from type if specified (e.g., VARCHAR(50))
+    const lengthMatch = typeLower.match(/\((\d+)\)/);
+    const maxLength = lengthMatch ? parseInt(lengthMatch[1]) : 50;
+    
+    // Generate varied strings
+    const baseString = generateRandomString(maxLength);
+    return isUnique ? generateUniqueString(baseString, rowIndex, true) : baseString;
   }
   
   // Fallback
-  return randomElement(GENERIC_STRINGS);
+  return generateRandomString(50);
 }
 
 // Generate multiple INSERT statements
 export function generateBulkInsertSQL(
   tableName: string,
-  columns: Array<{ name: string; type: string; nullable: boolean; default: string | null }>,
+  columns: Array<{ name: string; type: string; nullable: boolean; default: string | null; primary_key?: boolean }>,
   rowCount: number,
   includeNullableColumns: boolean = false
 ): string {
@@ -273,7 +345,15 @@ export function generateBulkInsertSQL(
   
   for (let i = 0; i < rowCount; i++) {
     const rowValues = columnsToInsert.map(col => {
-      const value = generateValue(col.name, col.type, i);
+      // Check if column has unique constraint or is primary key
+      const needsUnique = col.primary_key || 
+                         col.name.toLowerCase().includes('username') || 
+                         col.name.toLowerCase().includes('email') ||
+                         col.name.toLowerCase().includes('phone') ||
+                         col.name.toLowerCase().includes('code') ||
+                         col.name.toLowerCase().includes('sku');
+      
+      const value = generateValue(col.name, col.type, i, needsUnique);
       
       // Handle special cases
       if (value === 'gen_random_uuid()') {
