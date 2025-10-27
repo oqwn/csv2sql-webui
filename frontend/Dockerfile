@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine as build
+FROM node:25-alpine as build
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
